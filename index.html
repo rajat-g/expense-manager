@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Offline Expense Manager (SQLite)</title>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <button id="menuToggle" class="btn btn-ghost mobile-only">☰ Menu</button>
+    <div class="brand">💸 Expense Manager</div>
+    <div class="spacer"></div>
+  </div>
+  <div id="overlay"></div>
+
+  <nav>
+    <div class="brand">💸 Expense Manager</div>
+    <div class="small">Data saved locally (SQLite via WebAssembly)</div>
+    <button data-page="dashboard" class="active">Dashboard</button>
+    <button data-page="transactions">Transactions</button>
+    <button data-page="accounts">Accounts</button>
+    <button data-page="categories">Categories</button>
+    <button data-page="settings">Settings</button>
+  </nav>
+
+  <main>
+    <!-- Dashboard -->
+    <section id="dashboard" class="page">
+      <div class="row">
+        <div class="stat"><div class="muted">Total Income</div><div id="dIncome" class="v money-pos">₹0</div></div>
+        <div class="stat"><div class="muted">Total Expense</div><div id="dExpense" class="v money-neg">₹0</div></div>
+        <div class="stat"><div class="muted">Net</div><div id="dNet" class="v">₹0</div></div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div class="card" style="flex:2; min-width:300px">
+          <h3>Last 6 Months (Income vs Expense)</h3>
+          <canvas id="monthChart" width="900" height="220"></canvas>
+        </div>
+        <div class="card" style="flex:1; min-width:260px">
+          <h3>Top Categories</h3>
+          <div id="topCats"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Recent Transactions</h3>
+        <table>
+          <thead><tr><th>Date</th><th>Account</th><th>Category</th><th>Type</th><th>Note</th><th class="right">Amount</th></tr></thead>
+          <tbody id="recentTx"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Transactions -->
+    <section id="transactions" class="page" style="display:none">
+      <div class="card">
+        <h3>Add Transaction</h3>
+        <div class="grid-3">
+          <div><label>Date</label><input type="date" id="txDate"></div>
+          <div><label>Account</label><select id="txAccount"></select></div>
+          <div>
+            <label>Type</label>
+            <select id="txType">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </div>
+          <div><label>Category</label><select id="txCategory"></select></div>
+          <div><label>Amount</label><input type="number" id="txAmount" step="0.01"></div>
+          <div><label>Note</label><input type="text" id="txNote" placeholder="optional"></div>
+        </div>
+        <div class="toolbar" style="margin-top:8px">
+          <button id="txAddBtn" class="btn btn-primary">Add</button>
+          <div class="spacer"></div>
+          <button id="txClearBtn" class="btn btn-ghost">Clear</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Transactions</h3>
+        <div class="toolbar">
+          <div>
+            <label>From</label>
+            <input type="date" id="fFrom">
+          </div>
+          <div>
+            <label>To</label>
+            <input type="date" id="fTo">
+          </div>
+          <div>
+            <label>Account</label>
+            <select id="fAccount"><option value="">All</option></select>
+          </div>
+          <div>
+            <label>Category</label>
+            <select id="fCategory"><option value="">All</option></select>
+          </div>
+          <div>
+            <label>Type</label>
+            <select id="fType"><option value="">All</option><option value="expense">Expense</option><option value="income">Income</option></select>
+          </div>
+          <button id="applyFilters" class="btn btn-ghost">Apply</button>
+          <div class="spacer"></div>
+          <button id="exportCsvBtn" class="btn btn-ghost">Export CSV</button>
+        </div>
+
+        <div style="overflow:auto;margin-top:8px">
+          <table>
+            <thead><tr><th>Date</th><th>Account</th><th>Category</th><th>Type</th><th>Note</th><th class="right">Amount</th><th></th></tr></thead>
+            <tbody id="txTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Accounts -->
+    <section id="accounts" class="page" style="display:none">
+      <div class="card">
+        <h3>Account Groups</h3>
+        <div class="toolbar">
+          <input type="text" id="groupName" placeholder="New group name">
+          <select id="groupType">
+            <option value="cash">Cash & Wallet</option>
+            <option value="bank">Bank Accounts</option>
+            <option value="debit">Debit Cards</option>
+            <option value="credit">Credit Cards</option>
+          </select>
+          <button id="groupAddBtn" class="btn btn-primary">Add Group</button>
+        </div>
+        <table style="margin-top:10px">
+          <thead><tr><th>Group Name</th><th>Type</th><th class="right">Total Balance</th><th></th></tr></thead>
+          <tbody id="groupTable"></tbody>
+        </table>
+      </div>
+      
+      <div class="card" style="margin-top:12px">
+        <h3>Accounts by Group</h3>
+        <div id="accTable"></div>
+      </div>
+    </section>
+
+    <!-- Categories -->
+    <section id="categories" class="page" style="display:none">
+      <div class="card">
+        <h3>Categories</h3>
+        <div class="grid-2">
+          <div>
+            <label>Name</label>
+            <input type="text" id="catName" placeholder="e.g., Groceries">
+          </div>
+          <div>
+            <label>Type</label>
+            <select id="catType">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+              <option value="both">Both</option>
+            </select>
+          </div>
+        </div>
+        <div class="toolbar" style="margin-top:8px">
+          <button id="catAddBtn" class="btn btn-primary">Add</button>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="card">
+            <h3>Expense Categories</h3>
+            <table><thead><tr><th>Name</th><th></th></tr></thead><tbody id="catExpense"></tbody></table>
+          </div>
+          <div class="card">
+            <h3>Income Categories</h3>
+            <table><thead><tr><th>Name</th><th></th></tr></thead><tbody id="catIncome"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Settings -->
+    <section id="settings" class="page" style="display:none">
+      <div class="card">
+        <h3>Backup & Restore</h3>
+        <div class="toolbar">
+          <button id="exportDbBtn" class="btn btn-primary">Export .sqlite</button>
+          <input id="importDbFile" type="file" accept=".sqlite,.db,application/x-sqlite3" style="display:none">
+          <button id="importDbBtn" class="btn btn-ghost">Import .sqlite</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3>Danger Zone</h3>
+        <div class="toolbar">
+          <button id="seedBtn" class="btn btn-ghost">Seed Sample Data</button>
+          <button id="clearBtn" class="btn btn-danger">Clear Database</button>
+        </div>
+      </div>
+
+      <footer style="margin-top:12px">Built with ❤️ — stored locally using SQLite (sql.js).</footer>
+    </section>
+  </main>
+
+  <!-- Scripts -->
+  <script src="utils.js"></script>
+  <script src="database.js"></script>
+  <script src="dashboard.js"></script>
+  <script src="transactions.js"></script>
+  <script src="accounts.js"></script>
+  <script src="categories.js"></script>
+  <script src="settings.js"></script>
+  <script>
+    // Initialize the application
+    init();
+  </script>
+</body>
+</html>

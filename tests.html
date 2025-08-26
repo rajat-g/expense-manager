@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Expense Manager - Tests</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mocha@10.2.0/mocha.min.css">
+</head>
+<body>
+  <div id="mocha"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mocha@10.2.0/mocha.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chai@4.3.10/chai.js"></script>
+
+  <script>
+    (function(){
+      if(window.mocha){ window.mocha.setup('bdd'); }
+      if(window.chai){ window.expect = window.chai.expect; }
+      else { window.expect = function(){ throw new Error('Chai failed to load'); }; }
+    })();
+  </script>
+
+  <!-- Load app scripts needed for tests -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+  <script src="utils.js"></script>
+  <script src="database.js"></script>
+  <script src="transactions.js"></script>
+
+  <!-- Load spec files -->
+  <script src="tests/utils.spec.js"></script>
+  <script src="tests/db.spec.js"></script>
+  <script src="tests/transactions.spec.js"></script>
+
+  <script>
+    mocha.run();
+  </script>
+</body>
+</html>
+
