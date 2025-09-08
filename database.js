@@ -21,7 +21,13 @@ async function init(){
   initEvents();
   initMobileNav();
   setDefaultDates();
-  refreshAll();
+  renderTxSelectors();
+  renderAccountGroups();
+  renderAccounts();
+  renderCategories();
+  applyFilters();
+  const savedPage = localStorage.getItem(PAGE_KEY) || 'dashboard';
+  document.querySelector(`nav button[data-page="${savedPage}"]`).click();
 }
 
 // Create database schema
@@ -141,7 +147,7 @@ function initNav(){
       const page = btn.dataset.page;
       $$(".page").forEach(p=>p.style.display="none");
       $("#"+page).style.display="block";
-      if(page==="dashboard") drawChart();
+      if(page==="dashboard") renderDashboard();
       // close mobile nav if open
       toggleNav(false);
       // persist selected page
@@ -158,7 +164,7 @@ function initNav(){
         btn.classList.add("active");
         $$(".page").forEach(p=>p.style.display="none");
         $("#"+savedPage).style.display="block";
-        if(savedPage==="dashboard") drawChart();
+        if(savedPage==="dashboard") renderDashboard();
       }
     }
   }catch(e){}
@@ -181,12 +187,9 @@ function refreshAll(){
   renderAccounts();
   renderCategories();
   applyFilters();
-  renderDashboard();
-  drawChart();
 }
 
 // Refresh dashboard components
 function refreshDashboardBits(){
   renderDashboard();
-  drawChart();
 }

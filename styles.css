@@ -44,7 +44,13 @@ canvas{width:100%;height:200px;border:1px solid var(--border);border-radius:10px
 footer{padding:12px;text-align:center;color:var(--muted);font-size:12px}
 @media(max-width:980px){.grid-3{grid-template-columns:1fr}; .grid-2{grid-template-columns:1fr}}
 
-/* Mobile header and off-canvas nav */
+/* Add this at the end of the file */
+.chart-container {
+  position: relative;
+  height: 220px;
+  width: 100%;
+}
+
 .topbar{display:none;align-items:center;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:800}
 .mobile-only{display:none}
 

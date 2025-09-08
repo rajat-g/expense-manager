@@ -1,5 +1,8 @@
 // Dashboard functionality and chart rendering
 
+let monthChart = null;
+let categoryChart = null;
+
 // Render dashboard with statistics and recent transactions
 function renderDashboard(){
   // totals
@@ -9,26 +12,6 @@ function renderDashboard(){
   $("#dIncome").textContent = fmt(inc);
   $("#dExpense").textContent = fmt(exp);
   $("#dNet").textContent = fmt(inc-exp);
-
-  // top categories (by absolute net magnitude)
-  const cats = query(`
-    SELECT c.name,
-           SUM(CASE WHEN t.type='income' THEN t.amount ELSE 0 END) income,
-           SUM(CASE WHEN t.type='expense' THEN t.amount ELSE 0 END) expense
-    FROM categories c
-    LEFT JOIN transactions t ON t.categoryId=c.id
-    GROUP BY c.id
-    ORDER BY (ABS(SUM(CASE WHEN t.type='income' THEN t.amount ELSE 0 END) -
-                  SUM(CASE WHEN t.type='expense' THEN t.amount ELSE 0 END))) DESC
-    LIMIT 8
-  `);
-  const tc = $("#topCats");
-  tc.innerHTML = cats.map(c=>`
-    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #eef2f7">
-      <div>${esc(c.name)}</div>
-      <div><span class="pill inc">+ ${fmt(c.income||0)}</span> <span class="pill exp">- ${fmt(c.expense||0)}</span></div>
-    </div>
-  `).join("");
 
   // recent transactions
   const recent = query(`
@@ -49,14 +32,13 @@ function renderDashboard(){
       <td class="right ${r.type==='income'?'money-pos':'money-neg'}">${r.type==='income'?'+':'-'} ${fmt(r.amount||0)}</td>
     </tr>
   `).join("");
+
+  drawMonthChart();
+  drawCategoryChart();
 }
 
 // Draw chart for last 6 months
-function drawChart(){
-  const cv = $("#monthChart");
-  const ctx = cv.getContext("2d");
-  ctx.clearRect(0,0,cv.width,cv.height);
-
+function drawMonthChart(){
   const months = [];
   const now = new Date();
   for(let i=5;i>=0;i--){
@@ -79,26 +61,76 @@ function drawChart(){
   const map = Object.fromEntries(months.map(m=>[m,{inc:0,exp:0}]));
   for(const r of rows){ if(map[r.m]) { map[r.m].inc = r.inc||0; map[r.m].exp = r.exp||0; } }
 
-  const pad = 32, w=cv.width, h=cv.height, innerH=h-60;
-  const barW = (w-pad*2)/months.length;
-  const maxVal = Math.max(1, ...months.map(m=>Math.max(map[m].inc, map[m].exp)));
-  ctx.font = "12px sans-serif"; ctx.fillStyle="#111"; ctx.textAlign="center";
+  const chartData = {
+    labels: months,
+    datasets: [
+      {
+        label: 'Income',
+        data: months.map(m => map[m].inc),
+        borderColor: '#2ecc71',
+        backgroundColor: 'rgba(46, 204, 113, 0.1)',
+        fill: true,
+      },
+      {
+        label: 'Expense',
+        data: months.map(m => map[m].exp),
+        borderColor: '#e74c3c',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        fill: true,
+      }
+    ]
+  };
 
-  months.forEach((m,i)=>{
-    const x = pad + i*barW + barW/2;
-    ctx.fillText(m, x, h-6);
-    // income bar
-    const incH = (map[m].inc/maxVal)*innerH;
-    ctx.fillStyle = "#2ecc71";
-    ctx.fillRect(pad + i*barW + barW*0.15, h-28-incH, barW*0.3, incH);
-    // expense bar
-    const expH = (map[m].exp/maxVal)*innerH;
-    ctx.fillStyle = "#e74c3c";
-    ctx.fillRect(pad + i*barW + barW*0.55, h-28-expH, barW*0.3, expH);
-  });
+  if (monthChart) {
+    monthChart.data = chartData;
+    monthChart.update();
+  } else {
+    const ctx = $("#monthChart").getContext("2d");
+    monthChart = new Chart(ctx, {
+      type: 'line',
+      data: chartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+      }
+    });
+  }
+}
 
-  // legend
-  ctx.textAlign="left"; ctx.fillStyle="#111";
-  ctx.fillText("Income", pad, 14); ctx.fillStyle="#2ecc71"; ctx.fillRect(pad+60,6,10,10);
-  ctx.fillStyle="#111"; ctx.fillText("Expense", pad+110, 14); ctx.fillStyle="#e74c3c"; ctx.fillRect(pad+182,6,10,10);
+function drawCategoryChart(){
+    const cats = query(`
+    SELECT c.name, SUM(t.amount) total
+    FROM categories c
+    JOIN transactions t ON t.categoryId=c.id
+    WHERE t.type = 'expense'
+    GROUP BY c.id
+    ORDER BY total DESC
+    LIMIT 8
+  `);
+
+  const chartData = {
+    labels: cats.map(c => c.name),
+    datasets: [{
+      data: cats.map(c => c.total),
+      backgroundColor: [
+        '#e74c3c', '#3498db', '#9b59b6', '#f1c40f',
+        '#2ecc71', '#e67e22', '#1abc9c', '#34495e'
+      ],
+    }]
+  };
+
+  if (categoryChart) {
+    categoryChart.data = chartData;
+    categoryChart.update();
+  } else {
+    const ctx = $("#categoryChart").getContext("2d");
+    categoryChart = new Chart(ctx, {
+      type: 'pie',
+      data: chartData,
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+      }
+    });
+  }
 }
