@@ -40,14 +40,9 @@ th,td{padding:8px;border-bottom:1px solid #f0f2f7;font-size:13px;text-align:left
 .money-pos{color:var(--green)} .money-neg{color:var(--red)}
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .spacer{flex:1}
-canvas{width:100%;height:200px;border:1px solid var(--border);border-radius:10px;background:#fff}
-footer{padding:12px;text-align:center;color:var(--muted);font-size:12px}
-@media(max-width:980px){.grid-3{grid-template-columns:1fr}; .grid-2{grid-template-columns:1fr}}
-
-/* Add this at the end of the file */
 .chart-container {
   position: relative;
-  height: 220px;
+  height: 350px;
   width: 100%;
 }
 

@@ -61,39 +61,52 @@ function drawMonthChart(){
   const map = Object.fromEntries(months.map(m=>[m,{inc:0,exp:0}]));
   for(const r of rows){ if(map[r.m]) { map[r.m].inc = r.inc||0; map[r.m].exp = r.exp||0; } }
 
-  const chartData = {
-    labels: months,
-    datasets: [
-      {
-        label: 'Income',
-        data: months.map(m => map[m].inc),
-        borderColor: '#2ecc71',
-        backgroundColor: 'rgba(46, 204, 113, 0.1)',
-        fill: true,
-      },
-      {
-        label: 'Expense',
-        data: months.map(m => map[m].exp),
-        borderColor: '#e74c3c',
-        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-        fill: true,
+  const options = {
+    series: [{
+      name: 'Income',
+      data: months.map(m => map[m].inc)
+    }, {
+      name: 'Expense',
+      data: months.map(m => map[m].exp)
+    }],
+    chart: {
+      type: 'area',
+      height: 350,
+      toolbar: {
+        show: false
       }
-    ]
+    },
+    colors: ['#2ecc71', '#e74c3c'],
+    dataLabels: {
+      enabled: false
+    },
+    stroke: {
+      curve: 'smooth'
+    },
+    xaxis: {
+      categories: months,
+    },
+    yaxis: {
+      labels: {
+        formatter: (value) => { return fmt(value) }
+      }
+    },
+    tooltip: {
+      x: {
+        format: 'MMM yyyy'
+      },
+    },
+    legend: {
+      position: 'top',
+      horizontalAlign: 'right'
+    }
   };
 
   if (monthChart) {
-    monthChart.data = chartData;
-    monthChart.update();
+    monthChart.updateOptions(options);
   } else {
-    const ctx = $("#monthChart").getContext("2d");
-    monthChart = new Chart(ctx, {
-      type: 'line',
-      data: chartData,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-      }
-    });
+    monthChart = new ApexCharts(document.querySelector("#monthChart"), options);
+    monthChart.render();
   }
 }
 
@@ -108,29 +121,34 @@ function drawCategoryChart(){
     LIMIT 8
   `);
 
-  const chartData = {
+  const options = {
+    series: cats.map(c => c.total),
     labels: cats.map(c => c.name),
-    datasets: [{
-      data: cats.map(c => c.total),
-      backgroundColor: [
-        '#e74c3c', '#3498db', '#9b59b6', '#f1c40f',
-        '#2ecc71', '#e67e22', '#1abc9c', '#34495e'
-      ],
+    chart: {
+      type: 'donut',
+      height: 350
+    },
+    colors: ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e67e22', '#1abc9c', '#34495e'],
+    legend: {
+      position: 'bottom'
+    },
+    responsive: [{
+      breakpoint: 480,
+      options: {
+        chart: {
+          width: 200
+        },
+        legend: {
+          position: 'bottom'
+        }
+      }
     }]
   };
 
   if (categoryChart) {
-    categoryChart.data = chartData;
-    categoryChart.update();
+    categoryChart.updateOptions(options);
   } else {
-    const ctx = $("#categoryChart").getContext("2d");
-    categoryChart = new Chart(ctx, {
-      type: 'pie',
-      data: chartData,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-      }
-    });
+    categoryChart = new ApexCharts(document.querySelector("#categoryChart"), options);
+    categoryChart.render();
   }
 }
