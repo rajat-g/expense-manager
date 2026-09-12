@@ -293,11 +293,26 @@ body.sheet-open #txFab{transform:scale(.6); opacity:0; pointer-events:none}
 /* forms */
 label{display:block; font-size:13px; color:var(--secondary); margin-bottom:5px}
 input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{
-  display:block;
   width:100%; padding:9px 12px;
   border:1px solid transparent; border-radius:var(--radius-sm);
   background:var(--card-secondary);
   font-size:15px;
+}
+/* Safari renders temporal inputs as inline-flex and misbehaves when forced
+   to display:block — so only non-temporal fields get it. */
+input:not([type="date"],[type="time"],[type="datetime-local"],[type="month"],[type="week"]),
+textarea,
+select{display:block}
+/* iOS Safari: native date/time widgets ignore width:100% once padded
+   (WebKit bug 301648). appearance:none makes the declared width apply;
+   the custom icon keeps the picker affordance (tap still opens it). */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"], input[type="time"]{
+    -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='4' y='6' width='16' height='14' rx='3'/%3E%3Cpath d='M4 10.5h16M8.5 3.5v4M15.5 3.5v4'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 10px center; background-size:16px 16px;
+    padding-right:34px;
+  }
 }
 @media(max-width:900px){
   input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{font-size:16px}
@@ -389,8 +404,9 @@ a:hover{text-decoration:underline}
 }
 @media(max-width:560px){
   .grid-2, .grid-3{grid-template-columns:1fr}
-  /* iOS date fields render wide internals: give them every spare pixel */
-  input[type="date"]{padding-left:8px; padding-right:8px}
+  /* iOS date fields render wide internals: give them every spare pixel
+     (right padding reserved for the calendar icon above) */
+  input[type="date"]{padding-left:8px}
   th:nth-child(2), td:nth-child(2){display:none}
 }
 /* very narrow phones: stack the sheet so iOS date fields never squeeze */
