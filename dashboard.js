@@ -41,15 +41,16 @@ function renderDashboard(){
 function drawMonthChart(){
   const months = [];
   const now = new Date();
+  const ym = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   for(let i=5;i>=0;i--){
     const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    months.push(d.toISOString().slice(0,7)); // YYYY-MM
+    months.push(ym(d)); // YYYY-MM (local, no UTC shift)
   }
 
   // compute explicit date range for safety (string compare works for YYYY-MM-DD)
   const startDate = months[0] + "-01";
   const endDateDate = new Date(now.getFullYear(), now.getMonth()+1, 0);
-  const endDate = endDateDate.toISOString().slice(0,10);
+  const endDate = `${endDateDate.getFullYear()}-${String(endDateDate.getMonth() + 1).padStart(2, "0")}-${String(endDateDate.getDate()).padStart(2, "0")}`;
   const rows = query(`
     SELECT substr(date,1,7) m,
            SUM(CASE WHEN type='income' THEN amount ELSE 0 END) inc,

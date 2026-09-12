@@ -115,7 +115,10 @@ const Inbox = (() => {
   function ghReady() {
     try {
       if (typeof GhSync === "undefined") return { ok: false, reason: "sync module not loaded" };
-      const cfg = GhSync.readForm();
+      // Prefer the live form, fall back to stored settings (startup refresh
+      // runs before the form is filled from storage).
+      let cfg = GhSync.readForm();
+      if ((!cfg.token || !cfg.owner) && GhSync.storedCfg) cfg = GhSync.storedCfg();
       if (!cfg.owner || !cfg.repo || !cfg.token) return { ok: false, reason: "not configured" };
       return { ok: true, cfg };
     } catch { return { ok: false, reason: "not configured" }; }
@@ -123,14 +126,19 @@ const Inbox = (() => {
 
   function ghPassphrase() {
     const el = document.getElementById("ghPassphrase");
-    return (el && el.value) || "";
+    const live = (el && el.value) || "";
+    if (live) return live;
+    try {
+      if (typeof GhSync !== "undefined" && GhSync.storedCfg) return GhSync.storedCfg().passphrase || "";
+    } catch {}
+    return "";
   }
 
   // Fetch + decrypt the whole messages folder into the session cache.
   async function refreshRemote() {
     const ready = ghReady();
     if (!ready.ok) {
-      fetchError = "Configure owner / repo / token in Settings → Encrypted GitHub Backup first.";
+      fetchError = "Set the git remote URL + token in Settings → Encrypted GitHub Backup first.";
       try { renderInbox(); } catch {}
       return [];
     }

@@ -4,8 +4,11 @@
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 
-// Date utilities
-const todayISO = () => new Date().toISOString().slice(0,10);
+// Date utilities (local timezone: UTC conversions shift the day for +05:30)
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 // ID generation
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : ('id-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)));
@@ -33,9 +36,9 @@ function downloadBlob(blob, filename){
   URL.revokeObjectURL(url);
 }
 
-// Date offset helper for sample data
-const off = n => { 
-  const d=new Date(); 
-  d.setDate(d.getDate()+n); 
-  return d.toISOString().slice(0,10); 
+// Date offset helper for sample data (local, no UTC shift)
+const off = n => {
+  const d=new Date();
+  d.setDate(d.getDate()+n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };

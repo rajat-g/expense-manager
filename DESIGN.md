@@ -24,6 +24,17 @@ template tropes — the numbers and the review queue are the interface.
 - Charts (ApexCharts): iOS palette, SF stack, dark-aware income/expense colors.
 - Focus rings, selection tint, themed caret/scrollbars; `prefers-reduced-motion` off-ramp.
 
+## Ledger (Transactions surface, pinned direction)
+- Dense day-grouped list: big date numeral, weekday pill (red Sundays), day
+  income (blue) / expense (red) totals, rows with initial tile, note + category ·
+  account subline, tabular blue/red amounts, quiet delete.
+- Centered month pager (chevrons + month title; custom ranges labeled honestly),
+  Income / Exp. / Total summary strip, coral FAB opening a bottom-sheet quick-add.
+- Indian-format amounts (₹ 3,147.00). All dates computed in local time — UTC
+  conversions shifted month boundaries for IST and were removed.
+- Filters live behind a collapsible bar (funnel row, blue dot when narrowed);
+  plain full-month views start collapsed, custom views stay open.
+
 ## Rules carried from review
 - No emoji as icons (authored 1.7px stroke SVGs); ₹ and factual copy preserved.
 - Heading order h1 → h2; tab labels ≥11px; fills hold 4.5:1 in both schemes.

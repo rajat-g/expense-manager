@@ -1,5 +1,88 @@
 // Transaction management functionality
 
+// Ledger month state + helpers (reference: dense day-grouped ledger)
+let txMonth = null;
+let sheetWired = false;
+let filterTouched = false; // once the user toggles the bar, stop auto collapsing
+const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const pad2 = n => String(n).padStart(2, "0");
+const isoDay = (y, m, d) => `${y}-${pad2(m)}-${pad2(d)}`;
+const monthEndDay = (y, m) => new Date(y, m, 0).getDate(); // m = 1..12
+const inr2 = n => "₹ " + (Number(n || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function weekdayOf(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
+  if (!m) return "";
+  return WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
+}
+function txRangeTitle(from, to) {
+  const m = /^(\d{4})-(\d{2})-01$/.exec(from || "");
+  if (m) {
+    const y = +m[1], mo = +m[2];
+    if (to === isoDay(y, mo, monthEndDay(y, mo))) return `${MON[mo - 1]} ${y}`;
+    // default view runs month-start → today: still that month
+    const t = new Date();
+    if (to === todayISO() && y === t.getFullYear() && mo === t.getMonth() + 1) {
+      return `${MON[mo - 1]} ${y}`;
+    }
+  }
+  return "Custom range";
+}
+function syncTxMonthInputs() {
+  const y = txMonth.getFullYear(), m = txMonth.getMonth() + 1;
+  $("#fFrom").value = isoDay(y, m, 1);
+  $("#fTo").value = isoDay(y, m, monthEndDay(y, m));
+}
+function shiftTxMonth(n) {
+  txMonth = new Date(txMonth.getFullYear(), txMonth.getMonth() + n, 1);
+  syncTxMonthInputs();
+  applyFilters();
+}
+
+// Filter bar: dot when narrowed, auto-collapse on plain full-month views
+// (unless the user toggled it manually this session).
+function updateFilterBar(from, to, acc, cat, type) {
+  const card = document.querySelector(".filtercard");
+  const dot = $("#filterDot");
+  const toggle = $("#filterToggle");
+  if (!card || !dot || !toggle) return;
+  const narrowed = txRangeTitle(from, to) === "Custom range" || !!(acc || cat || type);
+  dot.classList.toggle("on", narrowed);
+  if (!filterTouched) {
+    const plain = !narrowed;
+    card.classList.toggle("collapsed", plain);
+    toggle.setAttribute("aria-expanded", String(!plain));
+  }
+}
+function toggleFilterBar() {
+  const card = document.querySelector(".filtercard");
+  const toggle = $("#filterToggle");
+  if (!card || !toggle) return;
+  filterTouched = true;
+  const collapsed = card.classList.toggle("collapsed");
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+}
+
+// Bottom-sheet quick add (native iOS sheet pattern)
+function openTxSheet() {
+  $("#txSheet").classList.add("open");
+  $("#sheetBackdrop").classList.add("open");
+  setTimeout(() => { try { $("#txAmount").focus({ preventScroll: true }); } catch {} }, 280);
+}
+function closeTxSheet() {
+  const s = $("#txSheet"), b = $("#sheetBackdrop");
+  if (s) s.classList.remove("open");
+  if (b) b.classList.remove("open");
+}
+function wireTxSheet() {
+  if (sheetWired) return;
+  sheetWired = true;
+  $("#txFab").onclick = openTxSheet;
+  $("#txSheetClose").onclick = closeTxSheet;
+  $("#sheetBackdrop").onclick = closeTxSheet;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeTxSheet(); });
+}
+
 // Render transaction selectors (accounts and categories)
 function renderTxSelectors(){
   const accs = query(`
@@ -27,6 +110,17 @@ function renderTxSelectors(){
   // react to type change on add form
   const typeSel = $("#txType");
   if(typeSel){ typeSel.onchange = ()=>updateTxCategoryOptions(); }
+
+  // ledger month pager + quick-add sheet (idempotent: renderTxSelectors re-runs)
+  if(!txMonth){
+    const f = $("#fFrom").value;
+    const m = /^(\d{4})-(\d{2})-01$/.exec(f || "");
+    txMonth = m ? new Date(+m[1], +m[2] - 1, 1) : (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+  }
+  $("#txPrevM").onclick = ()=>shiftTxMonth(-1);
+  $("#txNextM").onclick = ()=>shiftTxMonth(1);
+  $("#txMonthTitle").onclick = ()=>{ const d = new Date(); txMonth = new Date(d.getFullYear(), d.getMonth(), 1); syncTxMonthInputs(); applyFilters(); };
+  wireTxSheet();
 }
 
 // Add new transaction
@@ -49,6 +143,7 @@ function addTransaction(){
   stmt.run([id,date,accountId,categoryId,type,amount,note]); stmt.free();
   saveDB();
   clearTxForm(false);
+  closeTxSheet();
   applyFilters();
   refreshDashboardBits();
 }
@@ -85,22 +180,54 @@ function applyFilters(){
   sql += " ORDER BY t.date DESC, t.rowid DESC";
 
   const rows = query(sql, params);
-  $("#txTable").innerHTML = rows.map(r=>`
-    <tr>
-      <td>${esc(r.date)}</td>
-      <td>${esc(r.acc||"-")} ${r.groupName ? `(${esc(r.groupName)})` : ''}</td>
-      <td>${esc(r.cat||"-")}</td>
-      <td><span class="pill ${r.type==='income'?'inc':'exp'}">${esc(r.type)}</span></td>
-      <td>${esc(r.note||"")}</td>
-      <td class="right ${r.type==='income'?'money-pos':'money-neg'}">${r.type==='income'?'+':'-'} ${fmt(r.amount||0)}</td>
-      <td class="right">
-        <button class="btn btn-ghost" data-del="${r.id}">Delete</button>
-      </td>
-    </tr>
-  `).join("");
+
+  // summary strip + month title follow the same filtered range
+  let sInc = 0, sExp = 0;
+  for (const r of rows) { if (r.type === "income") sInc += r.amount || 0; else sExp += r.amount || 0; }
+  $("#txSumInc").textContent = inr2(sInc);
+  $("#txSumExp").textContent = inr2(sExp);
+  $("#txSumNet").textContent = (sInc - sExp < 0 ? "-" : "") + inr2(Math.abs(sInc - sExp));
+  $("#txMonthTitle").textContent = txRangeTitle(from, to);
+
+  // dense day-grouped ledger
+  const list = $("#txList");
+  if (!rows.length) {
+    list.innerHTML = `<div class="tx-empty">No entries in this view.<br/>Tap + to add one.</div>`;
+    updateFilterBar(from, to, acc, cat, type);
+    return;
+  }
+  let html = "";
+  let cur = null, dInc = 0, dExp = 0, buf = [];
+  const flushDay = () => {
+    if (!cur) return;
+    const dd = cur.slice(8, 10);
+    const wd = weekdayOf(cur);
+    html += `<div class="txday"><span class="dd">${esc(dd)}</span>`
+      + `<span class="pill ${wd === "Sun" ? "exp" : ""}">${esc(wd)}</span>`
+      + `<span class="spacer"></span>`
+      + `<span class="day-inc">${inr2(dInc)}</span>`
+      + `<span class="day-exp">${inr2(dExp)}</span></div>`;
+    html += buf.join("");
+  };
+  for (const r of rows) {
+    if (r.date !== cur) { flushDay(); cur = r.date; dInc = 0; dExp = 0; buf = []; }
+    if (r.type === "income") dInc += r.amount || 0; else dExp += r.amount || 0;
+    const letter = ((r.cat || r.acc || "?").trim()[0] || "?").toUpperCase();
+    const sub = [r.cat || "", r.acc || ""].filter(Boolean).join(" · ");
+    buf.push(`<div class="txrow">`
+      + `<span class="tile" title="${esc(r.cat || "")}">${esc(letter)}</span>`
+      + `<span class="t-main"><span class="t-note">${esc(r.note || r.cat || "-")}</span>`
+      + `<span class="t-sub">${esc(sub)}</span></span>`
+      + `<span class="t-amt ${r.type === "income" ? "inc" : "exp"}">${inr2(r.amount || 0)}</span>`
+      + `<button class="txdel" data-del="${r.id}" aria-label="Delete transaction">×</button>`
+      + `</div>`);
+  }
+  flushDay();
+  list.innerHTML = html;
+  updateFilterBar(from, to, acc, cat, type);
 
   // delete handlers
-  $$("#txTable [data-del]").forEach(b=>{
+  $$("#txList [data-del]").forEach(b=>{
     b.onclick = ()=>{
       if(!confirm("Delete this transaction?")) return;
       exec("DELETE FROM transactions WHERE id=?", [b.dataset.del]);

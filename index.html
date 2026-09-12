@@ -75,8 +75,70 @@
 
     <!-- Transactions -->
     <section id="transactions" class="page" style="display:none">
-      <header class="pagehead"><h1>Transactions</h1><p class="sub">Add, filter and review every entry.</p></header>
+      <div class="ledger-head">
+        <h1>Transactions</h1>
+        <div class="pager">
+          <button id="txPrevM" class="pager-btn" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6 8.5 12l6 6"/></svg></button>
+          <button id="txMonthTitle" class="month-title">This month</button>
+          <button id="txNextM" class="pager-btn" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
+        </div>
+      </div>
+
+      <div class="led-sum" aria-live="polite">
+        <div><div class="muted">Income</div><div id="txSumInc" class="led-inc">₹0</div></div>
+        <div><div class="muted">Exp.</div><div id="txSumExp" class="led-exp">₹0</div></div>
+        <div><div class="muted">Total</div><div id="txSumNet" class="led-net">₹0</div></div>
+      </div>
+
+      <div class="card filtercard" style="margin-top:12px">
+        <button id="filterToggle" class="filter-toggle" aria-expanded="true" aria-controls="filterBody">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14l-5.5 6.5V18l-3 1.5v-7L5 6z"/></svg>
+          <span>Filters</span>
+          <span id="filterDot" aria-hidden="true"></span>
+          <span class="spacer"></span>
+          <svg id="filterChev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>
+        </button>
+        <div id="filterBody">
+          <div class="grid-2" style="margin-top:10px">
+            <div>
+              <label>From</label>
+              <input type="date" id="fFrom">
+            </div>
+            <div>
+              <label>To</label>
+              <input type="date" id="fTo">
+            </div>
+          </div>
+          <div class="grid-3" style="margin-top:12px">
+            <div>
+              <label>Account</label>
+              <select id="fAccount"><option value="">All</option></select>
+            </div>
+            <div>
+              <label>Category</label>
+              <select id="fCategory"><option value="">All</option></select>
+            </div>
+            <div>
+              <label>Type</label>
+              <select id="fType"><option value="">All</option><option value="expense">Expense</option><option value="income">Income</option></select>
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top:12px">
+            <button id="applyFilters" class="btn btn-primary">Apply</button>
+            <div class="spacer"></div>
+            <button id="exportCsvBtn" class="btn btn-ghost">Export CSV</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="txList"></div>
+    </section>
+
+    <button id="txFab" aria-label="Add transaction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+    <div id="sheetBackdrop"></div>
+    <div id="txSheet" role="dialog" aria-modal="true" aria-label="Add transaction">
       <div class="card">
+        <div class="sheet-grip" aria-hidden="true"></div>
         <h2>Add Transaction</h2>
         <div class="grid-3">
           <div><label>Date</label><input type="date" id="txDate"></div>
@@ -96,45 +158,10 @@
           <button id="txAddBtn" class="btn btn-primary">Add</button>
           <div class="spacer"></div>
           <button id="txClearBtn" class="btn btn-ghost">Clear</button>
+          <button id="txSheetClose" class="btn btn-ghost">Close</button>
         </div>
       </div>
-
-      <div class="card" style="margin-top:12px">
-        <h2>Transactions</h2>
-        <div class="toolbar">
-          <div>
-            <label>From</label>
-            <input type="date" id="fFrom">
-          </div>
-          <div>
-            <label>To</label>
-            <input type="date" id="fTo">
-          </div>
-          <div>
-            <label>Account</label>
-            <select id="fAccount"><option value="">All</option></select>
-          </div>
-          <div>
-            <label>Category</label>
-            <select id="fCategory"><option value="">All</option></select>
-          </div>
-          <div>
-            <label>Type</label>
-            <select id="fType"><option value="">All</option><option value="expense">Expense</option><option value="income">Income</option></select>
-          </div>
-          <button id="applyFilters" class="btn btn-ghost">Apply</button>
-          <div class="spacer"></div>
-          <button id="exportCsvBtn" class="btn btn-ghost">Export CSV</button>
-        </div>
-
-        <div style="overflow:auto;margin-top:8px">
-          <table>
-            <thead><tr><th>Date</th><th>Account</th><th>Category</th><th>Type</th><th>Note</th><th class="right">Amount</th><th></th></tr></thead>
-            <tbody id="txTable"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+    </div>
 
     <!-- Inbox: raw SMS intake from iPhone Shortcuts -->
     <section id="inbox" class="page" style="display:none">
@@ -265,46 +292,74 @@
       <div class="card" style="margin-top:12px">
         <h2>Encrypted GitHub Backup (pass-style)</h2>
         <p class="muted" style="font-size:13px;line-height:1.5">
-          Like <b>passwordstore.org</b>: your database is AES-256-GCM encrypted in the browser
-          with your passphrase, then stored as a single file in a private GitHub repo.
-          GitHub only ever sees ciphertext. Git history gives you versioned backups.<br/>
-          Paste your <b>git remote URL</b> and a <b>personal access token</b> (fine-grained,
-          Contents read+write on this repo only). The token is the sign-in — GitHub retired
-          passwords, and browsers can't use SSH keys, so no username, password, or key fields.<br/>
-          SMS inbox messages are stored <b>only in the messages folder below</b>
-          (one encrypted file per message) plus a temporary outbox until upload —
-          never in local SQLite. Pull/refresh is read-only into a session cache,
-          so each device keeps its own pending/converted state.
+          Like <b>passwordstore.org</b>: your database is encrypted on this device, then stored
+          as one file in your private repo. GitHub only ever sees ciphertext.
         </p>
-        <div class="grid-2">
+
+        <div class="subgroup">
+          <h2>Repository</h2>
           <div><label>Git remote URL</label><input type="text" id="ghRemoteUrl" placeholder="e.g., https://github.com/myuser/expense-vault.git" autocomplete="off" spellcheck="false"/></div>
-          <div><label>&nbsp;</label><div class="toolbar"><button id="ghUseRemoteBtn" class="btn btn-ghost">Use this remote</button><button id="ghVerifyBtn" class="btn btn-ghost">Verify connection</button></div></div>
+          <div class="toolbar" style="margin-top:8px">
+            <button id="ghUseRemoteBtn" class="btn btn-ghost">Use this remote</button>
+            <button id="ghVerifyBtn" class="btn btn-ghost">Verify connection</button>
+          </div>
+          <div id="ghRepoResolved" class="muted" style="font-size:13px;margin-top:8px"></div>
+          <div class="grid-2" style="margin-top:8px">
+            <div><label>Backup file path</label><input type="text" id="ghPath" placeholder="expenses/expenses.enc.json"/></div>
+            <div><label>Messages folder</label><input type="text" id="ghMsgFolder" placeholder="messages"/></div>
+            <div><label>Branch</label><input type="text" id="ghBranch" placeholder="main"/></div>
+          </div>
         </div>
-        <div id="ghRepoResolved" class="muted" style="font-size:13px;margin-top:8px"></div>
-        <div class="grid-2" style="margin-top:8px">
-          <div><label>File path in repo</label><input type="text" id="ghPath" placeholder="expenses/expenses.enc.json"/></div>
-          <div><label>Messages folder in repo (one encrypted file per SMS)</label><input type="text" id="ghMsgFolder" placeholder="messages"/></div>
-          <div><label>Branch</label><input type="text" id="ghBranch" placeholder="main"/></div>
-          <div><label>Fine-grained token (Contents: read+write, this repo only)</label><input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off"/></div>
-          <div><label>Encryption passphrase (never sent anywhere)</label><input type="password" id="ghPassphrase" placeholder="long memorable passphrase" autocomplete="off"/></div>
+
+        <div class="subgroup">
+          <h2>Sign-in &amp; encryption</h2>
+          <div class="grid-2">
+            <div><label>Fine-grained token</label><input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off"/></div>
+            <div><label>Encryption passphrase</label><input type="password" id="ghPassphrase" placeholder="long memorable passphrase" autocomplete="off"/></div>
+          </div>
+          <p class="muted" style="font-size:12.5px;line-height:1.5;margin:8px 0 0">
+            Contents read+write on this repo only — <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">create one here</a>.
+            GitHub retired passwords, so the token is the sign-in. Everything here is stored
+            only in this browser; the passphrase never leaves it.
+          </p>
+          <div class="toolbar" style="margin-top:8px">
+            <button id="ghSaveBtn" class="btn btn-ghost">Save settings</button>
+            <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAuto" style="width:auto"/> Auto-push after each change</label>
+            <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAutoPull" style="width:auto"/> Auto-pull on startup (replaces local data)</label>
+          </div>
+          <div class="muted" style="font-size:12.5px;margin-top:6px">Auto-pull runs only when the remote, token and passphrase are all set and the connection verifies; otherwise it skips quietly.</div>
         </div>
-        <div class="toolbar" style="margin-top:8px">
-          <button id="ghSaveBtn" class="btn btn-ghost">Save settings</button>
-          <button id="ghPushBtn" class="btn btn-primary">Push encrypted backup</button>
-          <button id="ghPullBtn" class="btn btn-ghost">Pull & decrypt</button>
-          <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAuto" style="width:auto"/> Auto-push after each change</label>
+
+        <div class="subgroup">
+          <h2>Backup file</h2>
+          <div class="toolbar">
+            <button id="ghPushBtn" class="btn btn-primary">Push encrypted backup</button>
+            <button id="ghPullBtn" class="btn btn-ghost">Pull &amp; decrypt</button>
+            <button id="ghExportEncBtn" class="btn btn-ghost">Download .enc.json</button>
+            <input id="ghImportEncFile" type="file" accept=".json,application/json" style="display:none"/>
+            <button id="ghImportEncBtn" class="btn btn-ghost">Import .enc.json</button>
+          </div>
+          <div id="ghStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
         </div>
-        <div class="toolbar" style="margin-top:8px">
-          <button id="ghExportEncBtn" class="btn btn-ghost">Download .enc.json</button>
-          <input id="ghImportEncFile" type="file" accept=".json,application/json" style="display:none"/>
-          <button id="ghImportEncBtn" class="btn btn-ghost">Import .enc.json</button>
+
+        <div class="subgroup">
+          <h2>Messages</h2>
+          <p class="muted" style="font-size:12.5px;line-height:1.5;margin:0 0 8px">
+            Each SMS becomes one encrypted file in the folder above, plus a temporary outbox
+            until upload — never in local SQLite. Refresh only fills this device's view.
+          </p>
+          <div class="toolbar">
+            <button id="ghPushMsgsBtn" class="btn btn-primary">Push new messages</button>
+            <button id="ghPullMsgsBtn" class="btn btn-ghost">Pull messages</button>
+          </div>
+          <div id="ghMsgStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
         </div>
-        <div id="ghStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
-        <div class="toolbar" style="margin-top:8px">
-          <button id="ghPushMsgsBtn" class="btn btn-primary">Push new messages</button>
-          <button id="ghPullMsgsBtn" class="btn btn-ghost">Pull messages</button>
-        </div>
-        <div id="ghMsgStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
+
+        <p class="muted" style="font-size:12.5px;line-height:1.5;margin:14px 0 0">
+          Don't believe any of this? Read the code:
+          <a href="https://github.com/rajat-g/expense-manager">github.com/rajat-g/expense-manager</a>.
+          No personal server, no database, no analytics.
+        </p>
       </div>
 
       <div class="card" style="margin-top:12px">
@@ -340,7 +395,7 @@
         </div>
       </div>
 
-      <footer style="margin-top:12px">On-device ledger · encrypted GitHub backup · works offline.</footer>
+      <footer style="margin-top:12px">On-device ledger · encrypted GitHub backup · works offline.<br/>Open source: <a href="https://github.com/rajat-g/expense-manager">github.com/rajat-g/expense-manager</a></footer>
     </section>
   </main>
 

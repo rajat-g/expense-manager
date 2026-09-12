@@ -25,6 +25,13 @@ async function init(){
   }
   // migrate older DBs (new tables are IF NOT EXISTS)
   try { createSchema(); } catch (e) { console.warn("schema migrate failed", e); }
+  // Opt-in startup sync: pulls the backup + messages only when the GitHub
+  // connection is fully configured and verifies live. Runs before first render.
+  try {
+    if (typeof GhSync !== "undefined" && GhSync.autoPullIfConfigured) {
+      await GhSync.autoPullIfConfigured();
+    }
+  } catch (e) { console.warn("auto-pull failed", e); }
   initNav();
   initEvents();
   initMobileNav();
@@ -179,6 +186,7 @@ function initNav(){
       $$("nav button").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
       const page = btn.dataset.page;
+      document.body.dataset.page = page;
       $$(".page").forEach(p=>p.style.display="none");
       $("#"+page).style.display="block";
       if(page==="dashboard") renderDashboard();
@@ -208,10 +216,9 @@ function initNav(){
 // Set default dates for forms
 function setDefaultDates(){
   $("#txDate").value = todayISO();
-  // Filter defaults: current month
-  const d = new Date(); 
-  const start = new Date(d.getFullYear(),d.getMonth(),1).toISOString().slice(0,10);
-  $("#fFrom").value = start; 
+  // Filter defaults: current month (local dates)
+  const d = new Date();
+  $("#fFrom").value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   $("#fTo").value = todayISO();
 }
 

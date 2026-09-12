@@ -1,8 +1,11 @@
-// github-sync.js - encrypted GitHub backup, pass-style.
-// Only ciphertext leaves the device. GitHub Contents API stores one file:
-//   {owner}/{repo}/{path} on {branch}, JSON payload from vault.js.
-// Token: use a fine-grained PAT scoped to that single private repo,
-// Contents read+write. Token stays in this browser's localStorage.
+// Privacy model (verifiable in this file + vault.js):
+// - Everything in this Settings section is stored ONLY in this browser's
+//   localStorage, including the token and the encryption passphrase.
+// - The passphrase is used solely for local WebCrypto key derivation
+//   (see vault.js). It is never placed in a URL, header, or request body.
+// - The only network calls the app makes are to https://api.github.com
+//   (your own repo: ciphertext up/down, token in the Authorization header)
+//   plus CDN library downloads (sql.js, charts). No personal server or DB.
 
 const GhSync = (() => {
   const LS_KEY = "expense_gh_sync_cfg_v1";
@@ -22,9 +25,11 @@ const GhSync = (() => {
         msgFolder: c.msgFolder || "messages",
         branch: c.branch || "main",
         token: c.token || "",
+        passphrase: c.passphrase || "",
         auto: !!c.auto,
+        autoPull: !!c.autoPull,
       };
-    } catch { return { owner:"", repo:"", remoteUrl:"", path:"expenses/expenses.enc.json", msgFolder:"messages", branch:"main", token:"", auto:false }; }
+    } catch { return { owner:"", repo:"", remoteUrl:"", path:"expenses/expenses.enc.json", msgFolder:"messages", branch:"main", token:"", passphrase:"", auto:false, autoPull:false }; }
   }
 
   function readForm() {
@@ -40,7 +45,11 @@ const GhSync = (() => {
       msgFolder: ($("ghMsgFolder")?.value || "").trim() || "messages",
       branch: ($("ghBranch")?.value || "").trim() || "main",
       token: ($("ghToken")?.value || "").trim(),
+      // Stored in this browser's localStorage like everything else here.
+      // Only ever fed to local WebCrypto calls; never sent over the network.
+      passphrase: ($("ghPassphrase")?.value || ""),
       auto: !!$("ghAuto")?.checked,
+      autoPull: !!$("ghAutoPull")?.checked,
     };
   }
 
@@ -56,7 +65,9 @@ const GhSync = (() => {
     if ($("ghMsgFolder")) $("ghMsgFolder").value = cfg.msgFolder || "messages";
     if ($("ghBranch")) $("ghBranch").value = cfg.branch || "main";
     if ($("ghToken")) $("ghToken").value = cfg.token || "";
+    if ($("ghPassphrase")) $("ghPassphrase").value = cfg.passphrase || "";
     if ($("ghAuto")) $("ghAuto").checked = !!cfg.auto;
+    if ($("ghAutoPull")) $("ghAutoPull").checked = !!cfg.autoPull;
   }
 
   function saveCfg(cfg) {
@@ -267,35 +278,116 @@ const GhSync = (() => {
     return new TextDecoder().decode(bytes);
   }
 
+  // Download + decrypt the whole-DB backup. Throws friendly errors.
+  async function fetchBackupBytes(cfg, pw) {
+    const remote = await getRemote(cfg);
+    if (!remote || !remote.content) throw new Error("No backup file found at that path/branch yet. Push first.");
+    const json = b64DecodeUtf8(remote.content);
+    let payload;
+    try { payload = JSON.parse(json); } catch { throw new Error("Remote file is not valid vault JSON."); }
+    try {
+      return { bytes: await Vault.decryptDb(pw, payload), sha: remote.sha || null };
+    } catch {
+      throw new Error("Decryption failed. Wrong passphrase or file tampered with.");
+    }
+  }
+
+  // Swap the live DB for downloaded bytes (used by manual + auto pull).
+  function applyBackupBytes(bytes) {
+    suppressAuto = true;
+    db = new SQL.Database(bytes);
+    createSchema();
+    saveDB();
+    refreshAll();
+    suppressAuto = false;
+  }
+
   async function pullBackup() {
     const cfg = readForm();
     try {
       requireCfg(cfg);
       const pw = passphrase();
       setStatus("Downloading ciphertext from GitHub…");
-      const remote = await getRemote(cfg);
-      if (!remote || !remote.content) throw new Error("No backup file found at that path/branch yet. Push first.");
-      const json = b64DecodeUtf8(remote.content);
-      let payload;
-      try { payload = JSON.parse(json); } catch { throw new Error("Remote file is not valid vault JSON."); }
+      const { bytes, sha } = await fetchBackupBytes(cfg, pw);
       setStatus("Decrypting…");
-      let bytes;
-      try {
-        bytes = await Vault.decryptDb(pw, payload);
-      } catch {
-        throw new Error("Decryption failed. Wrong passphrase or file tampered with.");
-      }
-      suppressAuto = true;
-      db = new SQL.Database(bytes);
-      createSchema();
-      saveDB();
-      refreshAll();
-      suppressAuto = false;
+      applyBackupBytes(bytes);
       saveCfg(cfg);
-      setStatus(`Pulled and decrypted ${cfg.path} ✓ (git sha ${String(remote.sha || "").slice(0, 7)})`);
+      setStatus(`Pulled and decrypted ${cfg.path} ✓ (git sha ${String(sha || "").slice(0, 7)})`);
     } catch (e) {
       suppressAuto = false;
       setStatus("Pull failed: " + (e?.message || e), true);
+    }
+  }
+
+  // Merge persisted settings with owner/repo parsed from the remote URL.
+  function resolveCfg(cfg) {
+    const parsed = (typeof GitRemote !== "undefined") ? GitRemote.parseGitRemote(cfg.remoteUrl || "") : null;
+    return {
+      ...cfg,
+      owner: parsed ? parsed.owner : (cfg.owner || ""),
+      repo: parsed ? parsed.repo : (cfg.repo || ""),
+      host: parsed ? parsed.host : "",
+    };
+  }
+
+  // Persisted config with owner/repo resolved (for use before the form fills).
+  function storedCfg() {
+    return resolveCfg(loadCfg());
+  }
+
+  // True only when every sync credential is present (remote parses to GitHub,
+  // token + saved passphrase exist). No network involved.
+  function isConfiguredForSync(cfg) {
+    cfg = cfg || readForm();
+    if (!cfg.owner || !cfg.repo || !cfg.token) return false;
+    if (cfg.host && typeof GitRemote !== "undefined" && !GitRemote.isGitHubHost(cfg.host)) return false;
+    if (!cfg.passphrase) return false;
+    return true;
+  }
+
+  // Live check that the token works. Returns the GitHub login or null.
+  async function verifyTokenQuiet(token) {
+    try {
+      const res = await fetch("https://api.github.com/user", {
+        headers: { "Authorization": `Bearer ${token}`, "Accept": "application/vnd.github+json" },
+      });
+      if (!res.ok) return null;
+      const user = await res.json();
+      return (user && user.login) || null;
+    } catch { return null; }
+  }
+
+  // Startup auto-pull: runs only when the user opted in AND the connection
+  // verifies live. Replaces local data with the backup, then refreshes the
+  // messages cache. Never throws; reports into the sync status line.
+  // NOTE: reads loadCfg() (localStorage), not the form — at startup the form
+  // has not been filled from storage yet.
+  async function autoPullIfConfigured() {
+    let cfg;
+    try {
+      cfg = resolveCfg(loadCfg());
+      if (!cfg.autoPull) return false;
+      if (!isConfiguredForSync(cfg)) {
+        console.info("Auto-pull skipped: GitHub sync not fully configured.");
+        return false;
+      }
+      setStatus("Auto-pull: verifying GitHub connection…");
+      const login = await verifyTokenQuiet(cfg.token);
+      if (!login) {
+        setStatus("Auto-pull skipped: connection failed. Check token, repo and branch.", true);
+        return false;
+      }
+      setStatus(`Auto-pull: downloading backup as @${login}…`);
+      const { bytes } = await fetchBackupBytes(cfg, cfg.passphrase);
+      applyBackupBytes(bytes);
+      try { if (typeof Inbox !== "undefined" && Inbox.refreshRemote) await Inbox.refreshRemote(); } catch {}
+      saveCfg(cfg);
+      setStatus(`Auto-pulled backup + messages as @${login} ✓`);
+      return true;
+    } catch (e) {
+      try { suppressAuto = false; } catch {}
+      setStatus("Auto-pull failed: " + (e?.message || e), true);
+      return false;
     }
   }
 
@@ -622,7 +714,8 @@ const GhSync = (() => {
       } catch (e) { setMsgStatus(e?.message || e, true); }
     };
     if ($("ghAuto")) $("ghAuto").onchange = () => saveCfg(readForm());
-    ["ghRemoteUrl","ghPath","ghMsgFolder","ghBranch","ghToken"].forEach((id) => {
+    if ($("ghAutoPull")) $("ghAutoPull").onchange = () => saveCfg(readForm());
+    ["ghRemoteUrl","ghPath","ghMsgFolder","ghBranch","ghToken","ghPassphrase"].forEach((id) => {
       const el = $(id);
       if (el) el.addEventListener("change", () => saveCfg(readForm()));
     });
@@ -637,5 +730,5 @@ const GhSync = (() => {
     initSyncUI();
   }
 
-  return { pushBackup, pullBackup, loadCfg, readForm, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, migrateLocalMessages, outboxCount, notifyLocalChange };
+  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, migrateLocalMessages, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured };
 })();

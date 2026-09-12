@@ -8,6 +8,7 @@ function initEvents(){
 
   // Filters
   $("#applyFilters").onclick = applyFilters;
+  $("#filterToggle").onclick = toggleFilterBar;
 
   // CSV export
   $("#exportCsvBtn").onclick = exportTransactionsCsv;
