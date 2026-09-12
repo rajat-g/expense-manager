@@ -87,6 +87,10 @@ h1,h2,h3{letter-spacing:-.01em; text-wrap:balance}
 p{max-width:72ch}
 button{font:inherit; color:inherit}
 input,select,textarea{font:inherit; color:var(--text)}
+/* iOS gives date/select fields a wide intrinsic size; without this they
+   overflow their grid column on phones instead of shrinking */
+input, select, textarea{min-width:0; max-width:100%}
+.grid-2 > *, .grid-3 > *, .sheet-grid > *, .toolbar > *{min-width:0}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:var(--tertiary); border-radius:8px; border:2px solid var(--bg)}
 
@@ -385,6 +389,11 @@ a:hover{text-decoration:underline}
 @media(max-width:560px){
   .grid-2, .grid-3{grid-template-columns:1fr}
   th:nth-child(2), td:nth-child(2){display:none}
+}
+/* very narrow phones: stack the sheet so iOS date fields never squeeze */
+@media(max-width:380px){
+  .sheet-grid{grid-template-columns:1fr}
+  .sheet-grid .span2{grid-column:auto}
 }
 @media (prefers-reduced-motion: reduce){
   *{transition:none !important}
