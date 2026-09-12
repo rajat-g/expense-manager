@@ -1,63 +1,313 @@
+/* Expense Manager — iOS-native visual system.
+   Grouped backgrounds, inset cards, tab bar + sidebar, SF stack, blue accent.
+   Light and dark follow the OS (prefers-color-scheme), like a native app. */
+
 :root{
-  --accent:#2b7a78; --accent2:#116466; --muted:#6b7280; --bg:#f6f7fb; --card:#fff;
-  --red:#e74c3c; --green:#2ecc71; --border:#eceef3;
+  color-scheme: light dark;
+  --bg:#f2f2f7;
+  --bg-secondary:#e5e5ea;
+  --card:#ffffff;
+  --card-secondary:#f2f2f7;
+  --text:#1c1c1e;
+  --secondary:#6b6b70;
+  --tertiary:#aeaeb2;
+  --separator:#e0e0e6;
+  --blue:#007aff;
+  --blue-pressed:#0052a3;
+  --blue-fill:#0066cc;
+  --blue-tint:rgba(0,122,255,.12);
+  --green:#1f9d55;
+  --green-tint:rgba(52,199,89,.14);
+  --red:#d70015;
+  --red-fill:#d70015;
+  --red-tint:rgba(255,59,48,.12);
+  --orange:#c93400;
+  --orange-tint:rgba(255,149,0,.16);
+  --teal:#00707a;
+  --teal-tint:rgba(48,176,199,.16);
+  --purple:#6a4fd0;
+  --purple-tint:rgba(88,86,214,.14);
+  --fill:#e9e9ee;
+  --shadow:0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
+  --radius:14px;
+  --radius-sm:10px;
+  --sat:env(safe-area-inset-top, 0px);
+  --sab:env(safe-area-inset-bottom, 0px);
 }
-*{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
-body{margin:0;background:var(--bg);color:#111;display:flex;min-height:100vh}
-nav{width:240px;background:linear-gradient(180deg,var(--accent),var(--accent2));color:#fff;padding:16px 12px;display:flex;flex-direction:column;gap:8px}
-nav .brand{font-weight:700;margin-bottom:8px;font-size:16px}
-nav .small{font-size:12px;color:#dafffb}
-nav button{border:none;background:transparent;color:#fff;text-align:left;padding:10px 12px;border-radius:8px;cursor:pointer}
-nav button.active,nav button:hover{background:rgba(255,255,255,.15)}
-main{flex:1;padding:18px;overflow:auto}
-.row{display:flex;gap:12px;flex-wrap:wrap}
-.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 8px 26px rgba(17,24,39,.05)}
-.card h3{margin:0 0 8px 0;font-size:16px}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.controls{display:flex;gap:8px;flex-wrap:wrap}
-label{display:block;font-size:12px;color:#374151;margin-bottom:4px}
-input[type="text"], input[type="number"], input[type="date"], select, textarea{
-  width:100%;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-size:14px
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#000000;
+    --bg-secondary:#1c1c1e;
+    --card:#1c1c1e;
+    --card-secondary:#2c2c2e;
+    --text:#f2f2f7;
+    --secondary:#a7a7ae;
+    --tertiary:#636366;
+    --separator:#38383a;
+    --blue:#57a8ff;
+    --blue-pressed:#2f7fd6;
+    --blue-fill:#0066cc;
+    --blue-tint:rgba(87,168,255,.20);
+    --green:#30d158;
+    --green-tint:rgba(48,209,88,.16);
+    --red:#ff6b62;
+    --red-fill:#e02020;
+    --red-tint:rgba(255,69,58,.16);
+    --orange:#ff9f0a;
+    --orange-tint:rgba(255,159,10,.18);
+    --teal:#40c8e0;
+    --teal-tint:rgba(64,200,224,.16);
+    --purple:#bf5af2;
+    --purple-tint:rgba(191,90,242,.18);
+    --fill:#2c2c2e;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
 }
-table{width:100%;border-collapse:collapse}
-th,td{padding:8px;border-bottom:1px solid #f0f2f7;font-size:13px;text-align:left}
-.right{text-align:right}
-.muted{color:var(--muted)}
-.btn{border:none;border-radius:8px;padding:8px 10px;cursor:pointer}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-ghost{background:#fff;border:1px solid var(--border)}
-.btn-danger{background:var(--red);color:#fff}
-.pill{padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid var(--border)}
-.pill.exp{background:#fff3f1;border-color:#ffd7d1;color:#b42318}
-.pill.inc{background:#eafff1;border-color:#c7f5d8;color:#067647}
-.pill.cash{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
-.pill.bank{background:#f0f9ff;border-color:#bae6fd;color:#0369a1}
-.pill.debit{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
-.pill.credit{background:#fef3c7;border-color:#fde68a;color:#92400e}
-.stat{padding:12px;border-radius:10px;border:1px solid var(--border);background:#fff;min-width:160px}
-.stat .v{font-size:18px;font-weight:600}
-.money-pos{color:var(--green)} .money-neg{color:var(--red)}
-.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+/* clip (not hidden): kills sideways overflow without creating a scroll
+   container, so fixed/sticky positioning keeps working */
+html, body{overflow-x:clip}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size:16px;
+  line-height:1.45;
+  display:flex;
+  min-height:100vh;
+  caret-color:var(--blue);
+}
+::selection{background:var(--blue-tint)}
+:focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:6px}
+h1,h2,h3{letter-spacing:-.01em; text-wrap:balance}
+p{max-width:72ch}
+button{font:inherit; color:inherit}
+input,select,textarea{font:inherit; color:var(--text)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--tertiary); border-radius:8px; border:2px solid var(--bg)}
+
+/* ---------- top bar ---------- */
+.topbar{
+  display:flex; align-items:center; gap:10px;
+  padding:calc(10px + var(--sat)) 16px 10px;
+  background:color-mix(in srgb, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter:saturate(1.8) blur(20px);
+  backdrop-filter:saturate(1.8) blur(20px);
+  border-bottom:.5px solid var(--separator);
+  position:sticky; top:0; z-index:800;
+}
+.brandmark{
+  width:30px; height:30px; border-radius:8px; flex:none;
+  background:var(--blue-fill); color:#fff;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:17px; font-weight:700;
+}
+.brandname{font-size:17px; font-weight:600}
+.topbar .spacer{flex:1}
+
+/* ---------- sidebar (desktop column; mobile hides it for the tab bar) ---------- */
+nav.sidebar{
+  width:260px; flex:none;
+  background:var(--card);
+  border-right:.5px solid var(--separator);
+  padding:calc(20px + var(--sat)) 12px 20px;
+  display:flex; flex-direction:column; gap:2px;
+}
+.sidebar .side-head{display:flex; align-items:center; gap:10px; padding:2px 10px 4px}
+.sidebar .side-head .brandname{font-size:19px}
+.sidebar .small{font-size:12.5px; color:var(--secondary); padding:0 10px 12px}
+nav.sidebar button{
+  display:flex; align-items:center; gap:12px; width:100%;
+  border:none; background:transparent; color:var(--text);
+  font-size:16px; padding:9px 10px; border-radius:var(--radius-sm);
+  cursor:pointer; text-align:left;
+}
+nav.sidebar button svg{width:22px; height:22px; flex:none; color:var(--secondary)}
+nav.sidebar button:hover{background:var(--fill)}
+nav.sidebar button.active{background:var(--blue-tint); color:var(--blue); font-weight:600}
+nav.sidebar button.active svg{color:var(--blue)}
+
+/* ---------- tab bar (iPhone) ---------- */
+nav.tabbar{display:none}
+#overlay{display:none}
+
+/* ---------- content ---------- */
+main{flex:1; min-width:0; width:100%}
+.page{max-width:960px; margin:0 auto; padding:8px 20px 40px; width:100%}
+@media(min-width:901px){
+  /* sidebar carries the brand on desktop; the top bar is a mobile pattern */
+  .topbar{display:none}
+  /* independent scroll panes: sidebar and content scroll separately,
+     so nothing depends on fixed/sticky positioning on desktop */
+  html, body{height:100%}
+  body{overflow:hidden}
+  nav.sidebar{height:100vh; height:100dvh; overflow-y:auto}
+  main{margin-left:0; height:100vh; height:100dvh; overflow-y:auto}
+}
+.pagehead{padding:22px 4px 4px}
+.pagehead h1{margin:0; font-size:34px; line-height:1.12; font-weight:700; letter-spacing:-.02em}
+.pagehead .sub{margin:4px 0 12px; color:var(--secondary); font-size:14.5px}
+.pagehead .sub:last-child{margin-bottom:6px}
+
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:16px;
+  box-shadow:var(--shadow);
+  margin-top:14px;
+}
+.card h2{margin:0 0 10px; font-size:17px; font-weight:600}
+.card > h2:first-child{margin-top:0}
+.row{display:flex; gap:12px; flex-wrap:wrap}
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+.toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
 .spacer{flex:1}
-.chart-container {
-  position: relative;
-  height: 350px;
-  width: 100%;
+.muted{color:var(--secondary)}
+.small{font-size:12.5px}
+.right{text-align:right}
+
+/* stat header */
+.stat{
+  flex:1 1 150px;
+  background:var(--card); border-radius:var(--radius);
+  padding:14px 16px; box-shadow:var(--shadow); min-width:150px;
 }
+.stat .muted{font-size:13px}
+.stat .v{font-size:27px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; margin-top:2px}
 
-.topbar{display:none;align-items:center;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:800}
-.mobile-only{display:none}
+/* money + pills */
+.money-pos{color:var(--green)}
+.money-neg{color:var(--red)}
+.pill{
+  display:inline-block; padding:3px 9px; border-radius:7px;
+  font-size:12.5px; font-weight:600; line-height:1.5;
+  background:var(--fill); color:var(--secondary);
+  text-transform:capitalize; white-space:nowrap;
+}
+.pill.inc{background:var(--green-tint); color:var(--green)}
+.pill.exp{background:var(--red-tint); color:var(--red)}
+.pill.cash{background:var(--orange-tint); color:var(--orange)}
+.pill.bank{background:var(--blue-tint); color:var(--blue)}
+.pill.debit{background:var(--teal-tint); color:var(--teal)}
+.pill.credit{background:var(--purple-tint); color:var(--purple)}
 
-@media(max-width:840px){
+/* tables as inset lists */
+table{width:100%; border-collapse:collapse}
+th{
+  font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--secondary); text-align:left; padding:8px 10px 6px;
+  border-bottom:.5px solid var(--separator);
+}
+td{
+  padding:11px 10px; font-size:15px; vertical-align:middle;
+  border-bottom:.5px solid var(--separator);
+  font-variant-numeric:tabular-nums;
+}
+tr:last-child td{border-bottom:none}
+tbody tr:active{background:var(--fill)}
+
+/* forms */
+label{display:block; font-size:13px; color:var(--secondary); margin-bottom:5px}
+input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{
+  width:100%; padding:9px 12px;
+  border:1px solid transparent; border-radius:var(--radius-sm);
+  background:var(--card-secondary);
+  font-size:15px;
+}
+@media(max-width:900px){
+  input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{font-size:16px}
+}
+@media (prefers-color-scheme: dark){
+  input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{background:var(--card-secondary)}
+}
+input::placeholder, textarea::placeholder{color:var(--tertiary)}
+input:focus, select:focus, textarea:focus{outline:2px solid var(--blue); outline-offset:0; background:var(--card)}
+input[type="checkbox"]{width:22px; height:22px; accent-color:var(--blue)}
+input[type="date"]{min-height:44px}
+
+/* buttons */
+.btn{
+  border:none; border-radius:var(--radius-sm);
+  padding:10px 16px; font-size:16px; font-weight:600;
+  cursor:pointer; min-height:40px;
+  transition:transform .08s ease-out, background .15s, opacity .15s;
+}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45; cursor:default; transform:none}
+.btn-primary{background:var(--blue-fill); color:#fff}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-ghost{background:var(--fill); color:var(--blue)}
+.btn-ghost:hover{filter:brightness(.96)}
+.btn-danger{background:var(--red-fill); color:#fff}
+.btn-danger:hover{filter:brightness(1.1)}
+/* borderless row actions, iOS style */
+td .btn-ghost, [data-act] .btn-ghost{padding:6px 8px; min-height:0}
+/* segmented-feel for small inline selects */
+select.compact{width:auto}
+
+/* charts */
+.chart-container{position:relative; height:320px; width:100%; overflow:hidden}
+.row{max-width:100%}
+.row > *{min-width:0}
+
+/* inbox cards */
+#inboxList .card{margin-top:0; margin-bottom:12px}
+/* flat subgroup inside a card (avoids nested cards) */
+.subgroup{padding:4px 0 0}
+.subgroup + .subgroup{margin-top:14px; padding-top:14px; border-top:.5px solid var(--separator)}
+.subgroup h2{margin:0 0 6px; font-size:15px; font-weight:600}
+.groupblock{margin-top:14px}
+.groupblock > h2{margin:0 4px 8px; font-size:17px; font-weight:600}
+#accTable h2{margin:0; font-size:16px; font-weight:600}
+
+code{
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size:.86em; background:var(--fill); padding:2px 6px; border-radius:6px;
+  word-break:break-all;
+}
+footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
+
+/* ---------- iPhone layout ---------- */
+@media(max-width:900px){
   body{display:block}
-  nav{position:fixed;top:0;left:0;bottom:0;width:260px;transform:translateX(-100%);transition:transform .2s ease;background:linear-gradient(180deg,var(--accent),var(--accent2));z-index:1000;overflow:auto}
-  .topbar{display:flex}
-  .mobile-only{display:inline-flex}
-  main{padding:12px}
-  canvas{height:160px}
+  nav.sidebar{display:none}
+  html, body{height:auto; overflow:visible}
+  main{padding:0; margin:0; height:auto; overflow:visible}
+  .page{padding:4px 14px calc(96px + var(--sab))}
+  .pagehead{padding-top:14px}
+  .pagehead h1{font-size:30px}
+  .grid-3{grid-template-columns:1fr 1fr}
+  .stat .v{font-size:23px}
+  .chart-container{height:280px}
+  nav.tabbar{
+    display:flex;
+    position:fixed; left:0; right:0; bottom:0; z-index:1000;
+    width:100vw; max-width:100vw; overflow:hidden;
+    background:color-mix(in srgb, var(--card) 82%, transparent);
+    -webkit-backdrop-filter:saturate(1.8) blur(20px);
+    backdrop-filter:saturate(1.8) blur(20px);
+    border-top:.5px solid var(--separator);
+    padding:6px 4px calc(8px + var(--sab));
+  }
+  nav.tabbar button{
+    flex:1 1 0; border:none; background:transparent;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    font-size:11px; font-weight:500; color:var(--secondary);
+    padding:4px 0 2px; cursor:pointer; min-width:0; overflow:hidden;
+  }
+  nav.tabbar button svg{width:23px; height:23px; flex:none}
+  nav.tabbar button.active{color:var(--blue)}
+  nav.tabbar button span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; width:100%; text-align:center}
 }
-
-body.nav-open nav{transform:translateX(0)}
-#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:900}
-body.nav-open #overlay{display:block}
+@media(max-width:560px){
+  .grid-2, .grid-3{grid-template-columns:1fr}
+  th:nth-child(2), td:nth-child(2){display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important}
+}

@@ -103,7 +103,7 @@ function renderAccounts(){
     html += `
       <div class="card" style="margin-bottom: 12px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h3 style="margin: 0;">${esc(group.name)} <span class="pill ${group.type}">${esc(group.type)}</span></h3>
+          <h2 style="margin: 0;">${esc(group.name)} <span class="pill ${group.type}">${esc(group.type)}</span></h2>
           <div class="right ${group.totalBalance>=0?'money-pos':'money-neg'}">${fmt(group.totalBalance)}</div>
         </div>
         <table>

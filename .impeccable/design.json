@@ -1,0 +1,24 @@
+{
+  "world": "ios-native grouped UI, Operate mode",
+  "color": {
+    "light": {
+      "bg": "#f2f2f7", "card": "#ffffff", "text": "#1c1c1e", "secondary": "#6b6b70",
+      "separator": "#e0e0e6", "blue": "#007aff", "blueFill": "#0066cc",
+      "green": "#1f9d55", "red": "#d70015", "redFill": "#d70015"
+    },
+    "dark": {
+      "bg": "#000000", "card": "#1c1c1e", "text": "#f2f2f7", "secondary": "#a7a7ae",
+      "separator": "#38383a", "blue": "#57a8ff", "blueFill": "#0066cc",
+      "green": "#30d158", "red": "#ff6b62", "redFill": "#e02020"
+    }
+  },
+  "type": {
+    "stack": "-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, Roboto, sans-serif",
+    "largeTitle": "30-34px / 700 / -0.02em",
+    "cardTitle": "17px / 600",
+    "tabLabel": "11px / 500",
+    "numerals": "tabular-nums for money"
+  },
+  "shape": { "cardRadius": 14, "controlRadius": 10, "pillRadius": 7 },
+  "nav": { "desktop": "icon sidebar", "mobile": "bottom tab bar, 6 tabs" }
+}

@@ -10,13 +10,21 @@ async function init(){
   SQL = await initSqlJs({ locateFile: locateSqlWasm });
   const saved = localStorage.getItem(DB_KEY);
   if(saved){
-    db = new SQL.Database(Uint8Array.from(atob(saved), c=>c.charCodeAt(0)));
+    let bytes;
+    if (typeof Vault !== "undefined" && Vault.b64ToBytes) {
+      bytes = Vault.b64ToBytes(saved);
+    } else {
+      bytes = Uint8Array.from(atob(saved), c=>c.charCodeAt(0));
+    }
+    db = new SQL.Database(bytes);
   }else{
     db = new SQL.Database();
     createSchema();
     seedDefaults();
     saveDB();
   }
+  // migrate older DBs (new tables are IF NOT EXISTS)
+  try { createSchema(); } catch (e) { console.warn("schema migrate failed", e); }
   initNav();
   initEvents();
   initMobileNav();
@@ -26,7 +34,14 @@ async function init(){
   renderAccounts();
   renderCategories();
   applyFilters();
-  const savedPage = localStorage.getItem(PAGE_KEY) || 'dashboard';
+  try { if (typeof Inbox !== "undefined") { Inbox.initInboxUI(); Inbox.renderInbox(); } } catch (e) { console.warn("inbox init failed", e); }
+  // Shortcuts intake (?inbox=1&body=...) takes precedence over saved page
+  let shortcutId = null;
+  try { if (typeof Inbox !== "undefined") shortcutId = Inbox.ingestFromQueryParams(); } catch (e) { console.warn(e); }
+  try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {}
+  const savedPage = shortcutId
+    ? "inbox"
+    : (localStorage.getItem(PAGE_KEY) || 'dashboard');
   document.querySelector(`nav button[data-page="${savedPage}"]`).click();
 }
 
@@ -52,6 +67,11 @@ function createSchema(){
     CREATE INDEX IF NOT EXISTS idx_account_group ON accounts(groupId);
   `);
 }
+
+// Messages are NOT kept in local SQLite (GitHub encrypted folder is their home,
+// plus a temporary localStorage outbox until upload). Older DBs may still carry
+// a raw_messages table until the user runs the one-time migration in Settings;
+// fresh installs never create it.
 
 // Seed default data
 function seedDefaults(){
@@ -93,8 +113,22 @@ function seedDefaults(){
 // Save database to localStorage
 function saveDB(){
   const data = db.export();
-  const b64 = btoa(String.fromCharCode(...data));
-  localStorage.setItem(DB_KEY, b64);
+  let b64;
+  if (typeof Vault !== "undefined" && Vault.bufToB64) {
+    b64 = Vault.bufToB64(data);
+  } else {
+    let s = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < data.length; i += CHUNK) {
+      s += String.fromCharCode.apply(null, data.subarray(i, i + CHUNK));
+    }
+    b64 = btoa(s);
+  }
+  try {
+    localStorage.setItem(DB_KEY, b64);
+  } catch (e) {
+    console.warn("localStorage full, DB not persisted:", e);
+  }
 }
 
 // Database query helpers
@@ -148,6 +182,7 @@ function initNav(){
       $$(".page").forEach(p=>p.style.display="none");
       $("#"+page).style.display="block";
       if(page==="dashboard") renderDashboard();
+      if(page==="inbox") { try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {} }
       // close mobile nav if open
       toggleNav(false);
       // persist selected page
@@ -187,6 +222,7 @@ function refreshAll(){
   renderAccounts();
   renderCategories();
   applyFilters();
+  try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {}
 }
 
 // Refresh dashboard components

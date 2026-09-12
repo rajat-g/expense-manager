@@ -61,6 +61,11 @@ function drawMonthChart(){
   const map = Object.fromEntries(months.map(m=>[m,{inc:0,exp:0}]));
   for(const r of rows){ if(map[r.m]) { map[r.m].inc = r.inc||0; map[r.m].exp = r.exp||0; } }
 
+  const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const INCOME = dark ? '#30d158' : '#1f9d55';
+  const EXPENSE = dark ? '#ff453a' : '#d70015';
+  const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
+
   const options = {
     series: [{
       name: 'Income',
@@ -74,9 +79,10 @@ function drawMonthChart(){
       height: 350,
       toolbar: {
         show: false
-      }
+      },
+      fontFamily: FONT,
     },
-    colors: ['#2ecc71', '#e74c3c'],
+    colors: [INCOME, EXPENSE],
     dataLabels: {
       enabled: false
     },
@@ -126,9 +132,10 @@ function drawCategoryChart(){
     labels: cats.map(c => c.name),
     chart: {
       type: 'donut',
-      height: 350
+      height: 350,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif',
     },
-    colors: ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#2ecc71', '#e67e22', '#1abc9c', '#34495e'],
+    colors: ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#5856d6', '#30b0c7', '#ffcc00', '#8e8e93'],
     legend: {
       position: 'bottom'
     },
