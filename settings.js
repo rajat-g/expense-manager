@@ -21,8 +21,7 @@ function initEvents(){
   };
 
   // DB import
-  $("#importDbBtn").onclick = ()=>$("#importDbFile").click();
-  $("#importDbFile").onchange = async e=>{
+  $("#importDbBtn").onclick = ()=>$("#importDbFile").click();  $("#importDbFile").onchange = async e=>{
     const f = e.target.files[0]; if(!f) return;
     const buf = await f.arrayBuffer();
     db = new SQL.Database(new Uint8Array(buf));
@@ -32,6 +31,27 @@ function initEvents(){
     refreshAll();
     e.target.value="";
     alert("Database imported.");
+  };
+
+  // Clear cached app files (service worker + caches) and reload fresh.
+  // Local data is untouched: only re-downloaded code changes.
+  $("#clearCacheBtn").onclick = async ()=>{
+    if(!confirm("Reload fresh app files from the server? Your data stays on this device.")) return;
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch(e) { console.warn("cache clear incomplete", e); }
+    // cache-busting navigation (cleaned from the URL on boot); plain reload
+    // could otherwise serve the browser HTTP cache again.
+    const u = new URL(window.location.href);
+    u.searchParams.set("fresh", Date.now().toString(36));
+    window.location.href = u.toString();
   };
 
   // Seed + Clear

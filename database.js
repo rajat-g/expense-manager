@@ -7,6 +7,14 @@ const locateSqlWasm = f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/
 
 // Initialize the application
 async function init(){
+  // Drop one-time cache-buster param (see clear-cache reload in settings.js)
+  try {
+    const u = new URL(window.location.href);
+    if (u.searchParams.has("fresh")) {
+      u.searchParams.delete("fresh");
+      window.history.replaceState({}, "", u.pathname + (u.search ? "?" + u.searchParams.toString() : "") + u.hash);
+    }
+  } catch {}
   SQL = await initSqlJs({ locateFile: locateSqlWasm });
   const saved = localStorage.getItem(DB_KEY);
   if(saved){
