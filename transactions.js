@@ -67,18 +67,22 @@ function toggleFilterBar() {
 function openTxSheet() {
   $("#txSheet").classList.add("open");
   $("#sheetBackdrop").classList.add("open");
+  document.body.classList.add("sheet-open");
   setTimeout(() => { try { $("#txAmount").focus({ preventScroll: true }); } catch {} }, 280);
 }
 function closeTxSheet() {
   const s = $("#txSheet"), b = $("#sheetBackdrop");
   if (s) s.classList.remove("open");
   if (b) b.classList.remove("open");
+  document.body.classList.remove("sheet-open");
 }
 function wireTxSheet() {
   if (sheetWired) return;
   sheetWired = true;
   $("#txFab").onclick = openTxSheet;
   $("#txSheetClose").onclick = closeTxSheet;
+  const x = $("#txSheetX");
+  if (x) x.onclick = closeTxSheet;
   $("#sheetBackdrop").onclick = closeTxSheet;
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeTxSheet(); });
 }

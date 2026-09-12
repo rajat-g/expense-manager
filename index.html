@@ -137,12 +137,14 @@
     <button id="txFab" aria-label="Add transaction"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
     <div id="sheetBackdrop"></div>
     <div id="txSheet" role="dialog" aria-modal="true" aria-label="Add transaction">
-      <div class="card">
+      <div class="card sheet-card">
         <div class="sheet-grip" aria-hidden="true"></div>
-        <h2>Add Transaction</h2>
-        <div class="grid-3">
-          <div><label>Date</label><input type="date" id="txDate"></div>
-          <div><label>Account</label><select id="txAccount"></select></div>
+        <div class="sheet-head">
+          <h2>Add Transaction</h2>
+          <button id="txSheetX" class="sheet-x" aria-label="Close">×</button>
+        </div>
+        <div class="sheet-grid">
+          <div><label>Amount</label><input type="number" id="txAmount" step="0.01" inputmode="decimal" placeholder="0.00"></div>
           <div>
             <label>Type</label>
             <select id="txType">
@@ -150,13 +152,13 @@
               <option value="income">Income</option>
             </select>
           </div>
+          <div><label>Date</label><input type="date" id="txDate"></div>
           <div><label>Category</label><select id="txCategory"></select></div>
-          <div><label>Amount</label><input type="number" id="txAmount" step="0.01"></div>
-          <div><label>Note</label><input type="text" id="txNote" placeholder="optional"></div>
+          <div class="span2"><label>Account</label><select id="txAccount"></select></div>
+          <div class="span2"><label>Note</label><input type="text" id="txNote" placeholder="optional"></div>
         </div>
-        <div class="toolbar" style="margin-top:8px">
+        <div class="toolbar sheet-actions" style="margin-top:12px">
           <button id="txAddBtn" class="btn btn-primary">Add</button>
-          <div class="spacer"></div>
           <button id="txClearBtn" class="btn btn-ghost">Clear</button>
           <button id="txSheetClose" class="btn btn-ghost">Close</button>
         </div>
