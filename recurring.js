@@ -191,5 +191,6 @@ function saveRecurring() {
   renderRecurring();
   Notify.toast(wasEdit ? "Template updated." : "Template saved.", "success");
   applyFilters();
+  refreshAccountViews();
   refreshDashboardBits();
 }

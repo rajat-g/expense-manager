@@ -70,10 +70,10 @@ function renderCategories(){
           done = `Category deleted with ${cnt} transaction(s).`;
         } else {
           const r = await Notify.choose(
-            `"${oldName}" has ${cnt} transaction(s).`,
-            "Move them to another category, or delete everything.",
+            `Delete "${oldName}"?`,
+            `${cnt} transaction(s) will move to the category you pick.`,
             others.map((c) => ({ value: c.id, label: c.name })),
-            { okText: "Move", dangerText: `Delete all (${cnt})` });
+            { okText: "Move", dangerText: `Delete category and ${cnt} transaction(s) instead` });
           if (!r) return;
           if (r.action === "danger") {
             deleteCategoryWithTxns(id);

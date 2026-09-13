@@ -116,30 +116,41 @@ const Notify = (() => {
     }
   }
 
-  // Choice dialog: a select plus Move/confirm and optional danger buttons.
-  // options: [{ value, label }]. Resolves { action: "ok", value },
-  // { action: "danger" }, or null on cancel.
+  // Choice dialog: everything visible at once — a target select with
+  // Move/Cancel, plus the destructive alternative as a quiet footer link
+  // (a third button crowds mobile and reads as disabled). Resolves
+  // { action: "ok", value }, { action: "danger" }, or null on cancel.
+  // options: [{ value, label }].
   function choose(title, text, options, cfg) {
     const o = cfg || {};
     const inputOptions = {};
     for (const opt of options || []) inputOptions[opt.value] = opt.label;
+    let dangerTapped = false;
     return fire({
       title: String(title ?? ""),
       text: String(text ?? ""),
-      icon: o.danger ? "warning" : "question",
       input: "select",
       inputOptions,
       inputValidator: (v) => (!v ? "Pick one" : undefined),
       showCancelButton: true,
       confirmButtonText: o.okText || "Move",
       cancelButtonText: "Cancel",
-      showDenyButton: !!o.dangerText,
-      denyButtonText: o.dangerText || "",
+      footer: o.dangerText
+        ? `<button type="button" class="x-danger-link">${String(o.dangerText).replace(/</g, "&lt;")}</button>`
+        : "",
+      didOpen: (popup) => {
+        try {
+          const b = popup && popup.querySelector(".x-danger-link");
+          if (b) b.onclick = () => {
+            dangerTapped = true;
+            if (typeof Swal !== "undefined" && Swal && typeof Swal.close === "function") Swal.close();
+          };
+        } catch {}
+      },
     }).then((r) => {
-      if (!r) return null;
-      if (r.isConfirmed) return { action: "ok", value: r.value };
-      if (r.isDenied) return { action: "danger" };
-      return null;
+      if (dangerTapped) return { action: "danger" };
+      if (!r || !r.isConfirmed) return null;
+      return { action: "ok", value: r.value };
     });
   }
 

@@ -370,6 +370,12 @@ function addTransaction(){
 }
 
 // Shared post-save: persist, reset the sheet, refresh every surface.
+// Account balances live on the Accounts page, so it refreshes here too
+// (guarded: tests load this file without accounts.js).
+function refreshAccountViews(){
+  try { if (typeof renderAccountGroups === "function") renderAccountGroups(); } catch {}
+  try { if (typeof renderAccounts === "function") renderAccounts(); } catch {}
+}
 function afterTxSave(label){
   saveDB();
   setSheetMode();
@@ -378,6 +384,7 @@ function afterTxSave(label){
   try { Haptics.tap("success"); } catch {}
   Notify.toast(label || "Saved.", "success");
   applyFilters();
+  refreshAccountViews();
   refreshDashboardBits();
 }
 
@@ -454,6 +461,7 @@ function applyFilters(){
       try { Haptics.tap("success"); } catch {}
       Notify.toast("Transaction deleted.", "success");
       applyFilters();
+      refreshAccountViews();
       refreshDashboardBits();
     };
   });

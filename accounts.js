@@ -185,10 +185,10 @@ function renderAccounts(){
           done = `Account deleted with ${cnt} transaction(s).`;
         } else {
           const r = await Notify.choose(
-            `"${oldName}" has ${cnt} transaction(s).`,
-            "Move them to another account (including transfer endpoints), or delete everything.",
+            `Delete "${oldName}"?`,
+            `${cnt} transaction(s) will move to the account you pick — including transfer endpoints.`,
             others.map((a) => ({ value: a.id, label: a.name })),
-            { okText: "Move", dangerText: `Delete all (${cnt})` });
+            { okText: "Move", dangerText: `Delete account and ${cnt} transaction(s) instead` });
           if (!r) return;
           if (r.action === "danger") {
             deleteAccountWithTxns(id);
