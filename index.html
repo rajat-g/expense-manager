@@ -37,6 +37,17 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="lockScreen" style="display:none" role="dialog" aria-modal="true" aria-label="Unlock Expenses">
+    <div class="lock-card">
+      <span class="brandmark" aria-hidden="true">₹</span>
+      <h2>Expenses locked</h2>
+      <div id="lockDots" aria-hidden="true"></div>
+      <input type="password" id="lockPin" inputmode="numeric" autocomplete="off" placeholder="Enter PIN" aria-label="App PIN">
+      <button id="lockGoBtn" class="btn btn-primary" type="button">Unlock</button>
+      <div id="lockErr" class="muted" role="alert" style="min-height:20px"></div>
+      <p class="muted small">Forgot PIN? Clearing site data resets it — back up first.</p>
+    </div>
+  </div>
   <div class="topbar">
     <span class="brandmark" aria-hidden="true">₹</span>
     <div class="brandname">Expenses</div>
@@ -71,6 +82,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         </div>
         <div class="toolbar hero-actions">
           <button id="quickAddBtn" class="btn btn-primary">+ Add</button>
+          <button id="recurringBtn" type="button" class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:17px;height:17px;vertical-align:-3px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg> Recurring</button>
           <button id="syncNowBtn" class="btn btn-ghost">Sync now</button>
         </div>
       </div>
@@ -122,6 +134,10 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           <svg id="filterChev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>
         </button>
         <div id="filterBody">
+          <div style="margin-top:10px">
+            <label>Search</label>
+            <input type="search" id="txSearch" placeholder="Note, account, category, amount…" autocomplete="off">
+          </div>
           <div class="grid-2" style="margin-top:10px">
             <div>
               <label>From</label>
@@ -143,7 +159,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
             </div>
             <div>
               <label>Type</label>
-              <select id="fType"><option value="">All</option><option value="expense">Expense</option><option value="income">Income</option></select>
+              <select id="fType"><option value="">All</option><option value="expense">Expense</option><option value="income">Income</option><option value="transfer">Transfer</option></select>
             </div>
           </div>
           <div class="toolbar" style="margin-top:12px">
@@ -173,20 +189,67 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
             <select id="txType">
               <option value="expense">Expense</option>
               <option value="income">Income</option>
+              <option value="transfer">Transfer</option>
             </select>
           </div>
           <div><label>Date</label><input type="date" id="txDate"></div>
-          <div><label>Category</label><select id="txCategory"></select></div>
-          <div class="span2"><label>Account</label><select id="txAccount"></select></div>
+          <div id="txCatWrap"><label>Category</label><select id="txCategory"></select></div>
+          <div class="span2" id="txFromWrap"><label id="txFromLabel">Account</label><select id="txAccount"></select></div>
+          <div class="span2" id="txToWrap" style="display:none"><label>To account</label><select id="txToAccount"></select></div>
           <div class="span2"><label>Note</label><input type="text" id="txNote" placeholder="optional"></div>
+          <div class="span2" id="txSplitHint" style="display:none"><p class="muted" style="font-size:13px;margin:0">Part of a split — saving edits this part only.</p></div>
+          <div class="span2" id="txSplitWrap" style="display:none">
+            <div class="toolbar" style="margin-bottom:8px">
+              <label style="margin:0">Split lines</label>
+              <div class="spacer"></div>
+              <button id="txSplitAdd" type="button" class="btn btn-ghost">+ Line</button>
+            </div>
+            <div id="txSplitLines"></div>
+          </div>
         </div>
         <div class="toolbar sheet-actions" style="margin-top:12px">
           <button id="txAddBtn" class="btn btn-primary">Add</button>
+          <button id="txSplitBtn" type="button" class="btn btn-ghost">Split</button>
           <button id="txClearBtn" class="btn btn-ghost">Clear</button>
           <button id="txSheetClose" class="btn btn-ghost">Close</button>
         </div>
       </div>
     </div>
+
+    <!-- Recurring templates -->
+    <section id="recurring" class="page" style="display:none">
+      <header class="pagehead">
+        <div class="toolbar" style="margin-bottom:4px">
+          <button id="recBackBtn" class="btn btn-ghost" type="button">← Transactions</button>
+        </div>
+        <h1>Recurring</h1><p class="sub">Monthly templates create themselves. Already-created entries stay put if you pause or delete a template.</p>
+      </header>
+      <div class="card">
+        <h2 id="recFormTitle">New template</h2>
+        <div class="grid-2">
+          <div><label>Amount</label><input type="number" id="recAmount" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+          <div>
+            <label>Type</label>
+            <select id="recType">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </div>
+          <div><label>Day of month</label><select id="recDay"></select></div>
+          <div><label>Account</label><select id="recAccount"></select></div>
+          <div><label>Category</label><select id="recCategory"></select></div>
+          <div><label>Note</label><input type="text" id="recNote" placeholder="e.g., Rent"></div>
+          <div><label>Starts (month)</label><input type="month" id="recStart"></div>
+          <div><label>Ends (month, optional)</label><input type="month" id="recEnd"></div>
+        </div>
+        <div class="toolbar" style="margin-top:8px">
+          <button id="recSaveBtn" class="btn btn-primary">Save template</button>
+          <button id="recCancelBtn" class="btn btn-ghost" style="display:none">Cancel</button>
+        </div>
+      </div>
+      <div style="height:12px"></div>
+      <div id="recList"></div>
+    </section>
 
     <!-- Inbox: raw SMS intake from iPhone Shortcuts -->
     <section id="inbox" class="page" style="display:none">
@@ -319,6 +382,22 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
       </div>
 
       <div class="card">
+        <h2>App lock</h2>
+        <p class="muted" style="font-size:13px;line-height:1.5;margin:0 0 10px">PIN on launch and after 10 minutes away. Only a hash is stored — the PIN itself never is.</p>
+        <div id="lockCurWrap" style="display:none"><label>Current PIN</label><input type="password" id="lockCur" inputmode="numeric" autocomplete="off"></div>
+        <div class="grid-2">
+          <div><label>New PIN (4–8 digits)</label><input type="password" id="lockNew" inputmode="numeric" autocomplete="off"></div>
+          <div><label>Confirm PIN</label><input type="password" id="lockConfirm" inputmode="numeric" autocomplete="off"></div>
+        </div>
+        <div class="toolbar" style="margin-top:8px">
+          <button id="lockSaveBtn" class="btn btn-primary">Save PIN</button>
+          <button id="lockRemoveBtn" class="btn btn-ghost">Remove</button>
+          <button id="lockNowBtn" class="btn btn-ghost">Lock now</button>
+        </div>
+        <div id="lockMsg" class="muted" style="font-size:13px;margin-top:8px"></div>
+      </div>
+
+      <div class="card">
         <h2>Install on iPhone (no App Store needed)</h2>
         <p class="muted" style="font-size:13px;line-height:1.5">
           This app is installable directly from Safari. No Apple Developer account required.<br/>
@@ -350,10 +429,10 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           </div>
           <div id="ghRepoResolved" class="muted" style="font-size:13px;margin-top:8px"></div>
           <div class="grid-2" style="margin-top:8px">
-            <div><label>Backup path (monthly shards live alongside it)</label><input type="text" id="ghPath" placeholder="expenses/expenses.enc.json"/></div>
             <div><label>Messages folder</label><input type="text" id="ghMsgFolder" placeholder="messages"/></div>
             <div><label>Branch</label><input type="text" id="ghBranch" placeholder="main"/></div>
           </div>
+          <p class="muted" style="font-size:13px;margin:8px 0 0">Expenses are stored as monthly shards under <code>expenses/</code> by default.</p>
         </div>
 
         <div class="subgroup">
@@ -380,9 +459,6 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           <div class="toolbar">
             <button id="ghPushBtn" class="btn btn-primary">Push encrypted backup</button>
             <button id="ghPullBtn" class="btn btn-ghost">Pull &amp; decrypt</button>
-            <button id="ghExportEncBtn" class="btn btn-ghost">Download .enc.json</button>
-            <input id="ghImportEncFile" type="file" accept=".json,application/json" style="display:none"/>
-            <button id="ghImportEncBtn" class="btn btn-ghost">Import .enc.json</button>
           </div>
           <div id="ghStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
           <div id="ghSyncTimes" class="muted" style="font-size:13px;margin-top:6px"></div>
@@ -418,18 +494,16 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         <div class="toolbar" style="margin-top:8px">
           <button id="inboxClearConvertedBtn" class="btn btn-ghost">Drop queued converted + ignored</button>
         </div>
-        <div class="toolbar" style="margin-top:8px">
-          <button id="inboxMigrateBtn" class="btn btn-primary">Upload local SQLite messages to GitHub & drop table</button>
-        </div>
-        <div id="inboxMigrateStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h2>Backup & Restore</h2>
+        <h2>Backup &amp; Restore</h2>
         <div class="toolbar">
           <button id="exportDbBtn" class="btn btn-primary">Export .sqlite</button>
           <input id="importDbFile" type="file" accept=".sqlite,.db,application/x-sqlite3" style="display:none">
           <button id="importDbBtn" class="btn btn-ghost">Import .sqlite</button>
+          <div class="spacer"></div>
+          <button id="seedBtn" class="btn btn-ghost">Seed Sample Data</button>
         </div>
         <div class="toolbar" style="margin-top:8px">
           <button id="clearCacheBtn" class="btn btn-ghost">Reload fresh app files</button>
@@ -438,16 +512,41 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h2>Danger Zone<button type="button" class="info-btn" data-faq="faq-clear-vs-nuke" aria-label="Clear versus Delete Everything — what's the difference?">i</button></h2>
-        <div class="toolbar">
-          <button id="seedBtn" class="btn btn-ghost">Seed Sample Data</button>
-          <button id="clearBtn" class="btn btn-danger">Clear Database</button>
+        <h2>Danger Zone<button type="button" class="info-btn" data-faq="faq-wipe" aria-label="What gets wiped where?">i</button></h2>
+        <div class="danger-row">
+          <div class="grow">
+            <h3>GitHub data</h3>
+            <p class="muted">Encrypted shards, dimensions and messages. Remote-only — returns on next push.</p>
+          </div>
+          <div class="actions">
+            <button id="delShardsBtn" class="btn btn-ghost">Delete shards + dimensions</button>
+            <button id="delMsgsBtn" class="btn btn-ghost">Delete message files</button>
+            <button id="delGhAllBtn" class="btn btn-ghost">Delete all GitHub data</button>
+          </div>
         </div>
-        <p class="muted" style="font-size:13px;line-height:1.5;margin:10px 0 0">Clear Database wipes this device and deletes the encrypted backup from GitHub (other devices drop the data too).</p>
-        <div class="toolbar" style="margin-top:8px">
-          <button id="nukeBtn" class="btn btn-danger">Delete Everything (Device + GitHub)</button>
+        <div class="danger-row">
+          <div class="grow">
+            <h3>Device database (SQLite)</h3>
+            <p class="muted">Local accounts, transactions, categories, templates. Backup will sync back.</p>
+          </div>
+          <div class="actions">
+            <button id="delDeviceBtn" class="btn btn-ghost">Clear device database</button>
+          </div>
         </div>
-        <p class="muted" style="font-size:13px;line-height:1.5;margin:10px 0 0">Plain wipe: device ledger plus all backup and message files on GitHub, no tombstones kept. Other devices will re-upload their data on next sync.</p>
+        <div class="danger-row">
+          <div class="grow">
+            <h3>Browser storage</h3>
+            <p class="muted">Settings, token, theme, PIN, outbox. Includes the saved database.</p>
+          </div>
+          <div class="actions">
+            <button id="delBrowserBtn" class="btn btn-ghost">Clear browser storage</button>
+          </div>
+        </div>
+        <div class="danger-combo">
+          <button id="wipeBtn" class="btn btn-danger">Clear GitHub + device data</button>
+          <button id="wipeAllBtn" class="btn btn-danger">Clear everything (all three)</button>
+          <p class="muted">Plain wipes, no tombstones: other devices re-upload. Clear everything also wipes this browser and reloads.</p>
+        </div>
         <div id="dangerStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5" aria-live="polite"></div>
       </div>
 
@@ -465,15 +564,19 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
       <div class="card">
         <details class="faq" id="faq-sync">
           <summary>How does sync work with multiple devices?</summary>
-          <div class="muted">Your ledger lives on each device. GitHub holds one encrypted file per shard (dimensions + one file per month). Every push <b>pulls first</b>, unions both sides by id (the pushing device wins ties), writes the merged result back locally <b>and</b> to GitHub — so no device silently overwrites another. Empty month files are deleted from the repo.</div>
+          <div class="muted">Your ledger lives on each device. GitHub holds one encrypted file per shard (dimensions + one file per month). Every push <b>pulls first</b>, unions both sides by id (the pushing device wins ties), writes the merged result back locally <b>and</b> to GitHub — so no device silently overwrites another. Deleting a single row keeps a deletion log (tombstone) so other devices drop it too; empty month files are deleted from the repo.</div>
         </details>
-        <details class="faq" id="faq-clear-vs-nuke">
-          <summary>Clear Database vs Delete Everything — what's the difference?</summary>
-          <div class="muted"><b>Clear Database</b> wipes this device and deletes the backup from GitHub, but keeps a deletion log (tombstones), so your <b>other devices drop the data too</b> on their next sync. Messages are untouched.<br/><b>Delete Everything</b> is the plain wipe: device ledger plus all backup <b>and</b> message files on GitHub, with <b>no tombstones kept</b>. Simpler — but any other device still holding data will re-upload it on its next sync.</div>
+        <details class="faq" id="faq-storage">
+          <summary>What data is stored where?</summary>
+          <div class="muted">Three separate stores, three separate wipes (Danger Zone):<br/><b>GitHub</b> — the encrypted backup: monthly shards, dimensions, the legacy backup file and one file per inbox message. Ciphertext only; the passphrase never leaves your devices.<br/><b>Device database (SQLite)</b> — accounts, transactions, categories, recurring templates and the deletion log, live in this browser only.<br/><b>Browser storage</b> — sync settings (remote, token, passphrase), last push/pull times, theme, app-lock PIN, SMS outbox, inbox prefs and last page.</div>
+        </details>
+        <details class="faq" id="faq-wipe">
+          <summary>What do the two wipe buttons do?</summary>
+          <div class="muted"><b>Clear GitHub + device data</b> deletes the GitHub backup and messages and resets this device's database. <b>Clear everything</b> does all that plus wipes this browser's storage and reloads.<br/>Each section also has its own delete (GitHub shards, messages, device database, browser storage) for clearing one store at a time — note a lone store refills from the others on next sync.<br/>All wipes are plain, with no deletion log kept — so any <b>other device still holding data will re-upload it</b> on its next sync. Wipe every device, or delete the data on one device and let it sync, to truly remove it.</div>
         </details>
         <details class="faq" id="faq-came-back">
           <summary>Deleted or cleared data came back. Why?</summary>
-          <div class="muted">Almost always one of these: (1) another device re-uploaded it — it never got the deletion (see above); push from the device that still has it, or delete it there too. (2) The wipe happened on an older app version that didn't tombstone clears — clear again with this version. (3) Auto-pull on startup replaced your local data with the remote backup — that's its job; turn it off in Settings if you don't want it.</div>
+          <div class="muted">Almost always one of these: (1) another device re-uploaded it — wipes keep no deletion log, so a device that missed the wipe pushes its data back; wipe it there too. (2) Auto-pull on startup replaced your local data with the remote backup — that's its job; turn it off in Settings if you don't want it. (3) A single deleted row returns only if its tombstone never uploaded — push from the device where you deleted it.</div>
         </details>
         <details class="faq" id="faq-conflicts">
           <summary>What if I edit the same record on two devices?</summary>
@@ -517,8 +620,10 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
   <!-- Scripts (charts lazy-load on first dashboard render; never render-blocking) -->
   <script src="vendor/web-haptics.js"></script>
   <script src="haptics.js"></script>
+  <script src="lock.js"></script>
   <script src="utils.js"></script>
   <script src="parsers.js"></script>
+  <script src="recurring.js"></script>
   <script src="database.js"></script>
   <script src="dashboard.js"></script>
   <script src="transactions.js"></script>

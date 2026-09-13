@@ -17,8 +17,7 @@ function initEvents(){
   if (sn) sn.onclick = () => { try { if (typeof GhSync !== "undefined") GhSync.pushBackup(true); } catch {} };
   const chip = $("#syncChip");
   if (chip) chip.onclick = () => {
-    const btn = document.querySelector('nav button[data-page="settings"]');
-    if (btn) btn.click();
+    try { goToPage("settings"); } catch {}
   };
 
   // Theme: topbar + sidebar toggle, plus the explicit Dark/Light
@@ -40,6 +39,7 @@ function initEvents(){
   });
   const back = $("#faqBackBtn");
   if (back) back.onclick = () => showPage("settings");
+  try { if (typeof Lock !== "undefined") Lock.initLockUI(); } catch {}
   try { updateThemeButtons(); } catch {}
 
   // CSV export
@@ -90,32 +90,67 @@ function initEvents(){
     window.location.href = u.toString();
   };
 
-  // Seed + Clear + Nuke (heavy lifting lives in GhSync so auto-push can be
-  // suppressed while wiping; otherwise the wipe itself would re-upload).
-  // Buttons disable while a wipe runs — results appear in the Danger Zone
-  // status line right below them.
+  // Danger Zone: two wipe buttons (heavy lifting lives in GhSync so auto-push
+  // can be suppressed while wiping; otherwise the wipe itself re-uploads).
+  // Buttons disable while a wipe runs — results appear in the status line
+  // right below them.
   function setDangerBusy(busy) {
-    for (const btnId of ["clearBtn", "nukeBtn"]) {
+    for (const btnId of ["wipeBtn", "wipeAllBtn", "delShardsBtn", "delMsgsBtn", "delGhAllBtn", "delDeviceBtn", "delBrowserBtn"]) {
       const el = document.getElementById(btnId);
       if (el) el.disabled = busy;
     }
   }
   $("#seedBtn").onclick = ()=>{ if(confirm("Create sample data?")) { seedSample(); saveDB(); refreshAll(); }};
-  $("#clearBtn").onclick = async ()=>{
+  $("#wipeBtn").onclick = async ()=>{
     try { Haptics.tap("warning"); } catch {}
-    if(!confirm("Clear ALL data on this device AND delete the encrypted backup from GitHub? Other devices drop the data too.")) return;
-    if (typeof GhSync === "undefined" || !GhSync.clearDatabaseEverywhere) { alert("Sync module not ready."); return; }
+    if(!confirm("Clear the GitHub data AND this device's database? No tombstones are kept, so other devices will re-upload on next sync. Cannot be undone.")) return;
+    if (typeof GhSync === "undefined" || !GhSync.clearGithubAndDevice) { alert("Sync module not ready."); return; }
     setDangerBusy(true);
-    try { await GhSync.clearDatabaseEverywhere(); }
+    try { await GhSync.clearGithubAndDevice(); }
     finally { setDangerBusy(false); }
   };
-  const nuke = $("#nukeBtn");
-  if (nuke) nuke.onclick = async ()=>{
+  const ghWipe = [
+    ["delShardsBtn", "Delete the monthly shards and dimensions from GitHub? This device keeps its data and will re-upload on next push.", "deleteShardBackup"],
+    ["delMsgsBtn", "Delete all message files from GitHub? Pending outbox items will re-upload.", "deleteMessageBackup"],
+    ["delGhAllBtn", "Delete ALL GitHub data (shards, dimensions, messages)? This device keeps its data and will re-upload on next push.", "deleteAllGithubData"],
+  ];
+  for (const [btnId, msg, fn] of ghWipe) {
+    const el = document.getElementById(btnId);
+    if (!el) continue;
+    el.onclick = async () => {
+      try { Haptics.tap("warning"); } catch {}
+      if (!confirm(msg)) return;
+      if (typeof GhSync === "undefined" || !GhSync[fn]) { alert("Sync module not ready."); return; }
+      setDangerBusy(true);
+      try { await GhSync[fn](); }
+      finally { setDangerBusy(false); }
+    };
+  }
+  const devDb = document.getElementById("delDeviceBtn");
+  if (devDb) devDb.onclick = async () => {
     try { Haptics.tap("warning"); } catch {}
-    if(!confirm("Delete EVERYTHING on this device AND all backup + message files on GitHub? No tombstones are kept, so other devices will re-upload their data. Cannot be undone.")) return;
-    if (typeof GhSync === "undefined" || !GhSync.nukeEverything) { alert("Sync module not ready."); return; }
+    if (!confirm("Clear this device's database? GitHub backup untouched — it syncs back on next push/pull.")) return;
+    if (typeof GhSync === "undefined" || !GhSync.deleteDeviceDatabase) { alert("Sync module not ready."); return; }
     setDangerBusy(true);
-    try { await GhSync.nukeEverything(); }
+    try { await GhSync.deleteDeviceDatabase(); }
+    finally { setDangerBusy(false); }
+  };
+  const browStore = document.getElementById("delBrowserBtn");
+  if (browStore) browStore.onclick = async () => {
+    try { Haptics.tap("warning"); } catch {}
+    if (!confirm("Clear this browser's storage (settings, token, theme, PIN, outbox) and reload? The saved database goes with it.")) return;
+    if (typeof GhSync === "undefined" || !GhSync.deleteBrowserStorage) { alert("Sync module not ready."); return; }
+    setDangerBusy(true);
+    try { await GhSync.deleteBrowserStorage(); }
+    finally { setDangerBusy(false); }
+  };
+  const wipeAll = $("#wipeAllBtn");
+  if (wipeAll) wipeAll.onclick = async ()=>{
+    try { Haptics.tap("warning"); } catch {}
+    if(!confirm("Clear GitHub data, device database AND this browser's storage (settings, token, theme, PIN), then reload? Cannot be undone.")) return;
+    if (typeof GhSync === "undefined" || !GhSync.clearEverything) { alert("Sync module not ready."); return; }
+    setDangerBusy(true);
+    try { await GhSync.clearEverything(); }
     finally { setDangerBusy(false); }
   };
 }

@@ -1,7 +1,11 @@
 // Database management and SQLite operations
 
 let SQL, db;
-const DB_KEY = "expenseDB_sqlite_b64";
+const DB_KEY = "expenseDBv2_sqlite_b64";
+// Pre-v2 database key. Old schemas are NOT migrated: when no current database
+// exists, this key is dropped and the app starts clean (see Settings for a
+// manual reset any time).
+const LEGACY_DB_KEY = "expenseDB_sqlite_b64";
 const PAGE_KEY = "expense_current_page";
 const locateSqlWasm = f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${f}`;
 
@@ -26,13 +30,13 @@ async function init(){
     }
     db = new SQL.Database(bytes);
   }else{
+    // No current database: drop any pre-v2 database and start clean.
+    try { localStorage.removeItem(LEGACY_DB_KEY); } catch {}
     db = new SQL.Database();
     createSchema();
     seedDefaults();
     saveDB();
   }
-  // migrate older DBs (new tables are IF NOT EXISTS)
-  try { createSchema(); } catch (e) { console.warn("schema migrate failed", e); }
   // Opt-in startup sync: pulls the backup + messages only when the GitHub
   // connection is fully configured and verifies live. Runs before first render.
   try {
@@ -44,10 +48,12 @@ async function init(){
   initEvents();
   initMobileNav();
   setDefaultDates();
+  try { if (typeof materializeDue === "function") materializeDue(); } catch {}
   renderTxSelectors();
   renderAccountGroups();
   renderAccounts();
   renderCategories();
+  try { if (typeof renderRecurring === "function") renderRecurring(); } catch {}
   applyFilters();
   try { if (typeof Inbox !== "undefined") { Inbox.initInboxUI(); Inbox.renderInbox(); } } catch (e) { console.warn("inbox init failed", e); }
   // Shortcuts intake (?inbox=1&body=...) takes precedence over saved page
@@ -74,7 +80,21 @@ function createSchema(){
       categoryId TEXT,
       type TEXT,
       amount REAL,
-      note TEXT
+      note TEXT,
+      toAccountId TEXT,
+      splitId TEXT
+    );
+    CREATE TABLE IF NOT EXISTS recurring (
+      id TEXT PRIMARY KEY,
+      accountId TEXT,
+      categoryId TEXT,
+      type TEXT,
+      amount REAL,
+      note TEXT,
+      day INTEGER,
+      startMonth TEXT,
+      endMonth TEXT,
+      paused INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
     CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(accountId);
@@ -87,9 +107,7 @@ function createSchema(){
 }
 
 // Messages are NOT kept in local SQLite (GitHub encrypted folder is their home,
-// plus a temporary localStorage outbox until upload). Older DBs may still carry
-// a raw_messages table until the user runs the one-time migration in Settings;
-// fresh installs never create it.
+// plus a temporary localStorage outbox until upload).
 
 // Seed default data
 function seedDefaults(){
@@ -112,7 +130,8 @@ function seedDefaults(){
     ["c_shop","Shopping","expense"],
     ["c_ent","Entertainment","expense"],
     ["c_salary","Salary","income"],
-    ["c_other","Other","both"]
+    ["c_other","Other","both"],
+    ["c_transfer","Transfer","both"]
   ];
   
   const insG = db.prepare("INSERT OR IGNORE INTO account_groups(id,name,type) VALUES (?,?,?)");
@@ -186,7 +205,7 @@ function recordTombstone(id, tbl){
 // Snapshot every sync id (call BEFORE a wholesale replace like Clear/Import).
 function snapshotSyncIds(){
   const out = new Map();
-  for (const t of ["account_groups", "accounts", "categories", "transactions"]) {
+  for (const t of ["account_groups", "accounts", "categories", "transactions", "recurring"]) {
     try {
       for (const r of query(`SELECT id FROM ${t}`)) {
         if (r && r.id != null && !out.has(r.id)) out.set(r.id, t);
@@ -202,7 +221,7 @@ function snapshotSyncIds(){
 // backup, while manual deletes (which tombstone) stay deleted.
 function tombstoneWipedIds(before){
   const live = new Set();
-  for (const t of ["account_groups", "accounts", "categories", "transactions"]) {
+  for (const t of ["account_groups", "accounts", "categories", "transactions", "recurring"]) {
     try {
       for (const r of query(`SELECT id FROM ${t}`)) {
         if (r && r.id != null) live.add(r.id);
@@ -292,6 +311,28 @@ function showPage(id, anchor){
   try { if (navBtn) localStorage.setItem(PAGE_KEY, id); } catch(e) {}
 }
 
+// Go to a nav page, clicking the button in the visible nav (sidebar on
+// desktop, tab bar on phones) so active states stay correct. Falls back to
+// showPage for pages without a nav button (recurring, faq).
+function goToPage(id){
+  let btn = null;
+  try {
+    const bar = document.querySelector("nav.tabbar");
+    if (bar && getComputedStyle(bar).display !== "none") {
+      btn = bar.querySelector(`button[data-page="${id}"]`);
+    }
+  } catch {}
+  if (!btn) {
+    try {
+      const side = document.querySelector("nav.sidebar");
+      if (side) btn = side.querySelector(`button[data-page="${id}"]`);
+    } catch {}
+  }
+  if (!btn) btn = document.querySelector(`nav button[data-page="${id}"]`);
+  if (btn) btn.click();
+  else if (typeof showPage === "function") showPage(id);
+}
+
 // Set default dates for forms
 function setDefaultDates(){
   $("#txDate").value = todayISO();
@@ -303,10 +344,12 @@ function setDefaultDates(){
 
 // Refresh all components
 function refreshAll(){
+  try { if (typeof materializeDue === "function") materializeDue(); } catch {}
   renderTxSelectors();
   renderAccountGroups();
   renderAccounts();
   renderCategories();
+  try { if (typeof renderRecurring === "function") renderRecurring(); } catch {}
   applyFilters();
   try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {}
 }

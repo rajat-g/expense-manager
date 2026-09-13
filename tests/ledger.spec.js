@@ -50,12 +50,12 @@ describe('ledger.js - sharded merge', function(){
     expect(f.account_groups).to.have.length(1);
   });
 
-  it('shardPaths derives sibling paths from the legacy file path', function(){
+  it('shardPaths derives sibling paths from the backup path', function(){
     const p = Ledger.shardPaths("expenses/expenses.enc.json");
     expect(p.dir).to.equal("expenses");
     expect(p.dims).to.equal("expenses/dims.enc.json");
     expect(p.month("2026-09")).to.equal("expenses/months/2026-09.enc.json");
-    expect(p.legacy).to.equal("expenses/expenses.enc.json");
+    expect(p.monthsDir).to.equal("expenses/months");
     expect(Ledger.shardPaths("backup.enc.json").dims).to.equal("dims.enc.json");
   });
 });

@@ -139,7 +139,38 @@ a:hover{text-decoration:underline}
 .seg button svg{width:17px; height:17px}
 .seg button[aria-pressed="true"]{background:var(--card); color:var(--text); box-shadow:var(--shadow)}
 
-/* info buttons + FAQ */
+/* app lock */
+#lockScreen{
+  position:fixed; inset:0; z-index:2000;
+  background:var(--bg);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.lock-card{
+  background:var(--card); border:var(--card-border); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:28px 24px; width:min(340px, 100%);
+  display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center;
+}
+.lock-card h2{margin:4px 0 0; font-size:20px}
+.lock-card .brandmark{width:44px; height:44px; font-size:24px}
+#lockDots{font-size:18px; letter-spacing:6px; color:var(--copper); min-height:26px}
+.lock-card input{text-align:center}
+.lock-card .btn{width:100%}
+
+/* danger zone rows: label left, actions right on desktop; stacked on phones */
+.danger-row{display:flex; gap:14px; align-items:center; padding:13px 2px}
+.danger-row + .danger-row{border-top:1px solid var(--separator)}
+.danger-row .grow{flex:1 1 auto; min-width:0}
+.danger-row h3{margin:0 0 3px; font-size:15px; font-weight:600}
+.danger-row p{margin:0; font-size:13px; line-height:1.5}
+.danger-row .actions{display:flex; gap:8px; flex-wrap:wrap; flex:none; justify-content:flex-end}
+.danger-combo{border-top:1px solid var(--separator); margin-top:4px; padding-top:14px; display:flex; gap:10px; flex-wrap:wrap}
+.danger-combo .btn{flex:1 1 220px}
+.danger-combo p{flex-basis:100%; margin:10px 0 0; font-size:13px; line-height:1.5}
+@media(max-width:640px){
+  .danger-row{flex-direction:column; align-items:stretch; gap:9px}
+  .danger-row .actions{justify-content:stretch}
+  .danger-row .actions .btn{flex:1 1 auto}
+}
 .info-btn{
   width:26px; height:26px; border-radius:50%; flex:none;
   border:1px solid var(--separator); background:var(--card2); color:var(--secondary);
@@ -265,6 +296,11 @@ main{flex:1; min-width:0; width:100%}
 .pill.bank{background:var(--info-tint); color:var(--info)}
 .pill.debit{background:var(--teal-tint); color:var(--teal)}
 .pill.credit{background:var(--violet-tint); color:var(--violet)}
+.pill.split{background:var(--info-tint); color:var(--info); font-size:11px; padding:1px 7px; margin-left:4px}
+
+/* split lines in the sheet */
+.split-line{display:grid; grid-template-columns:1fr 110px 40px; gap:8px; align-items:center; margin-bottom:8px}
+.split-line .txdel{padding:8px 6px}
 
 /* tables as inset lists */
 table{width:100%; border-collapse:collapse}
@@ -358,7 +394,7 @@ body.sheet-open nav.tabbar{transform:translateY(110%)}
 
 /* forms */
 label{display:block; font-size:13px; color:var(--secondary); margin-bottom:5px}
-input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{
+input[type="text"], input[type="search"], input[type="month"], input[type="number"], input[type="date"], input[type="password"], select, textarea{
   width:100%; padding:10px 12px;
   border:1px solid transparent; border-radius:var(--radius-sm);
   background:var(--card2);
@@ -368,7 +404,7 @@ input:not([type="date"],[type="time"],[type="datetime-local"],[type="month"],[ty
 textarea,
 select{display:block}
 @media(max-width:900px){
-  input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{font-size:16px}
+  input[type="text"], input[type="search"], input[type="month"], input[type="number"], input[type="date"], input[type="password"], select, textarea{font-size:16px}
 }
 input::placeholder, textarea::placeholder{color:var(--tertiary)}
 input:focus, select:focus, textarea:focus{outline:2px solid var(--copper); outline-offset:0; background:var(--card)}
@@ -378,7 +414,7 @@ input[type="date"]{min-height:44px}
   input[type="date"]{padding-left:8px}
 }
 @supports (-webkit-touch-callout: none) {
-  input[type="date"], input[type="time"]{
+  input[type="date"], input[type="month"], input[type="time"]{
     -webkit-appearance:none; appearance:none;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a89c86' stroke-linecap='round'%3E%3Crect x='4' y='6' width='16' height='14' rx='3'/%3E%3Cpath d='M4 10.5h16M8.5 3.5v4M15.5 3.5v4'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 10px center; background-size:16px 16px;
@@ -418,7 +454,8 @@ select.compact{width:auto}
 }
 @keyframes skel{to{background-position:-200% 0}}
 /* ranked category bars (no chart lib: crisp at every width) */
-.catbar{display:flex; align-items:center; gap:12px; padding:9px 4px}
+.catbar{display:flex; align-items:center; gap:12px; padding:9px 4px; cursor:pointer}
+.catbar[data-cat]:hover .t-note{color:var(--copper)}
 .catbar .bar{flex:1; min-width:0; height:10px; border-radius:6px; background:var(--fill); overflow:hidden}
 .catbar .bar > span{display:block; height:100%; border-radius:6px; background:var(--copper)}
 .catbar .t-amt{font-size:15px}

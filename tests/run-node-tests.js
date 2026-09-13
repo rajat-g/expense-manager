@@ -67,6 +67,13 @@ async function main() {
   assert.strictEqual(Ledger.shardPaths("expenses/expenses.enc.json").month("2026-09"), "expenses/months/2026-09.enc.json");
   console.log("ledger: PASS (merge + tombstones + sharding)");
 
+  // --- recurring dims merge alongside everything else ---
+  const m2 = Ledger.mergeLedgers(
+    { dims: { account_groups: [], accounts: [], categories: [], recurring: [{ id: "r1" }], tombstones: [{ id: "r2" }] }, months: {} },
+    { dims: { account_groups: [], accounts: [], categories: [], recurring: [{ id: "r2" }], tombstones: [] }, months: {} });
+  assert.deepStrictEqual(Ledger.flattenLedger(m2).recurring.map((r) => r.id), ["r1"]);
+  console.log("recurring-merge: PASS (dims union honors tombstones)");
+
   console.log("ALL NODE TESTS PASS");
 }
 

@@ -11,13 +11,20 @@ pixels.
 
 **Dashboard** — Net/in/out hero with quick Add + Sync actions, last-6-months
 income-vs-expense area chart (lazy-loaded, theme-aware, per-card skeletons),
-top-category bars, recent transactions (tap any row to edit it).
+top-category bars, recent transactions (tap any row to edit it). Tapping a
+month or a category drills into the filtered Transactions view.
 
 **Transactions** — Month pager with income/expense/total strip, collapsible
-filters (date range, account, category, type), dense day-grouped ledger.
-Tap a row to edit it in the bottom sheet (centred modal on desktop); `×`
-deletes with a tombstone so the delete propagates on next sync. CSV export
+filters (date range, account, category, type, full-text search), dense
+day-grouped ledger. Tap a row to edit it in the bottom sheet (centred modal
+on desktop); `×` deletes with a tombstone so the delete propagates on next
+sync. Supports **transfers** between own accounts (excluded from in/out and
+balances-aware) and **splits** (one payment across categories). CSV export
 of the current view.
+
+**Recurring** — Monthly templates (rent, salary) that materialize themselves
+with collision-proof ids, so two devices can never duplicate a month.
+Pause/resume/edit/delete; deleting an instance keeps it deleted.
 
 **Inbox (bank SMS)** — iPhone Shortcuts automation forwards each bank/UPI SMS
 to the app (`?inbox=1&body=…&sender=…`). Every message is parsed
@@ -35,19 +42,22 @@ passphrase never leaves the browser, GitHub only sees ciphertext. The backup
 is sharded (`dims.enc.json` + `months/YYYY-MM.enc.json`); every push pulls
 first and unions by id (pushing device wins ties, tombstones delete), empty
 month files are removed remotely. Auto-push (debounced) and startup
-auto-pull are opt-in. Clear Database wipes device + remote backup
-(tombstoned, so other devices follow); Delete Everything is the plain
-no-tombstone wipe of device, backup and messages. An in-app **Help & FAQ**
-page (ⓘ buttons in Settings) documents the multi-device semantics.
+auto-pull are opt-in. The Danger Zone separates the three stores — GitHub
+data, device database, browser storage — with two plain wipes (no
+tombstones): GitHub + device, or everything including this browser. An
+in-app **Help & FAQ** page (ⓘ buttons in Settings) documents the
+multi-device semantics.
 
 **Installable PWA** — Manifest + offline service worker, maskable icon,
 favicons, iOS splash screens. iPhone: Safari → Share → Add to Home Screen.
 A "Reload fresh app files" button purges stale caches after updates.
 
-**Theme & feel** — Explicit dark/light toggle (top bar, sidebar, Settings;
-dark by default, persisted, no flash). Haptics via vendored `web-haptics`
-(tab selection, sheet open, save success, validation errors, delete
-warnings, manual sync outcomes; background auto-sync stays silent).
+**Theme, feel & lock** — Explicit dark/light toggle (top bar, sidebar,
+Settings; dark by default, persisted, no flash). Haptics via vendored
+`web-haptics` (tab selection, sheet open, save success, validation errors,
+delete warnings, manual sync outcomes; background auto-sync stays silent).
+Optional PIN app lock (hashed, never stored) on launch and after 10 minutes
+away.
 
 ## File structure
 
@@ -57,6 +67,8 @@ warnings, manual sync outcomes; background auto-sync stays silent).
 *   `database.js` — SQLite lifecycle, schema + seeds, tombstone helpers.
 *   `dashboard.js` — Async dashboard cards + lazy charts.
 *   `transactions.js` — Ledger, filters, add/edit sheet, CSV export.
+*   `recurring.js` — Monthly templates + auto-materialization.
+*   `lock.js` — Optional PIN app lock.
 *   `accounts.js`, `categories.js` — Group/account/category management.
 *   `inbox.js` — SMS intake, outbox, review-to-transaction flow.
 *   `parsers.js` — Pluggable SMS parsing rules (see below).

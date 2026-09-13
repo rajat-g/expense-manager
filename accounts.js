@@ -6,8 +6,8 @@ function renderAccountGroups(){
     SELECT g.id, g.name, g.type,
            COUNT(a.id) as accountCount,
            COALESCE(SUM(
-             (SELECT SUM(CASE WHEN t.type='income' THEN t.amount ELSE -t.amount END) 
-              FROM transactions t WHERE t.accountId=a.id)
+             (SELECT SUM(CASE WHEN t.type='income' THEN t.amount WHEN t.type='transfer' AND t.toAccountId=a.id THEN t.amount ELSE -t.amount END)
+              FROM transactions t WHERE t.accountId=a.id OR t.toAccountId=a.id)
            ), 0) AS totalBalance
     FROM account_groups g
     LEFT JOIN accounts a ON a.groupId = g.id
@@ -81,8 +81,8 @@ function renderAccounts(){
     SELECT g.id, g.name, g.type,
            COUNT(a.id) as accountCount,
            COALESCE(SUM(
-             (SELECT SUM(CASE WHEN t.type='income' THEN t.amount ELSE -t.amount END) 
-              FROM transactions t WHERE t.accountId=a.id)
+             (SELECT SUM(CASE WHEN t.type='income' THEN t.amount WHEN t.type='transfer' AND t.toAccountId=a.id THEN t.amount ELSE -t.amount END)
+              FROM transactions t WHERE t.accountId=a.id OR t.toAccountId=a.id)
            ), 0) AS totalBalance
     FROM account_groups g
     LEFT JOIN accounts a ON a.groupId = g.id
@@ -95,7 +95,7 @@ function renderAccounts(){
   groups.forEach(group => {
     const accounts = query(`
       SELECT a.id, a.name,
-        COALESCE((SELECT SUM(CASE WHEN t.type='income' THEN t.amount ELSE -t.amount END) FROM transactions t WHERE t.accountId=a.id),0) AS balance
+        COALESCE((SELECT SUM(CASE WHEN t.type='income' THEN t.amount WHEN t.type='transfer' AND t.toAccountId=a.id THEN t.amount ELSE -t.amount END) FROM transactions t WHERE t.accountId=a.id OR t.toAccountId=a.id),0) AS balance
       FROM accounts a 
       WHERE a.groupId = ?
       ORDER BY a.name
@@ -169,8 +169,8 @@ function renderAccounts(){
   $$("#accTable [data-delacc]").forEach(b=>{
     b.onclick=()=>{
       const id=b.dataset.delacc;
-      const cnt = queryOne("SELECT COUNT(*) as c FROM transactions WHERE accountId=?", [id]).c;
-      if(cnt>0){ alert("Cannot delete: account has transactions."); return; }
+      const cnt = queryOne("SELECT COUNT(*) as c FROM transactions WHERE accountId=? OR toAccountId=?", [id, id]).c;
+      if(cnt>0){ alert("Cannot delete: account has transactions (including transfers)."); return; }
       if(!confirm("Delete this account?")) return;
       exec("DELETE FROM accounts WHERE id=?", [id]); 
       recordTombstone(id, "accounts");

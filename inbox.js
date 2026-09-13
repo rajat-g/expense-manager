@@ -495,22 +495,6 @@ const Inbox = (() => {
         renderInbox();
       };
     }
-    const migBtn = document.getElementById("inboxMigrateBtn");
-    if (migBtn) {
-      migBtn.onclick = async () => {
-        const hint = document.getElementById("inboxMigrateStatus");
-        const say = (t, err) => { if (hint) { hint.textContent = t; hint.style.color = err ? "#b42318" : ""; } };
-        if (!confirm("Upload all locally stored SQLite messages to GitHub, verify, then DROP the local table?")) return;
-        migBtn.disabled = true;
-        say("Migrating…");
-        try {
-          const r = await GhSync.migrateLocalMessages();
-          say(r.note, !r.dropped && r.pushed === 0);
-          renderInbox();
-        } catch (e) { say(e?.message || e, true); }
-        migBtn.disabled = false;
-      };
-    }
   }
 
   return {

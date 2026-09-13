@@ -44,8 +44,8 @@ function setChartSkeletons() {
 
 // Render dashboard with statistics and recent transactions
 function renderDashboard(){
-  // totals
-  const res = query("SELECT type, COALESCE(SUM(amount),0) total FROM transactions GROUP BY type");
+  // totals (transfers move between own accounts: excluded from in/out)
+  const res = query("SELECT type, COALESCE(SUM(amount),0) total FROM transactions WHERE type IN ('income','expense') GROUP BY type");
   let inc=0, exp=0;
   for(const r of res){ if(r.type==="income") inc=r.total; if(r.type==="expense") exp=r.total; }
   $("#dIncome").textContent = fmt(inc);
@@ -54,9 +54,10 @@ function renderDashboard(){
 
   // recent transactions
   const recent = query(`
-    SELECT t.*, a.name as acc, g.name as groupName, c.name as cat
+    SELECT t.*, a.name as acc, a2.name as toAcc, g.name as groupName, c.name as cat
     FROM transactions t
     LEFT JOIN accounts a ON a.id=t.accountId
+    LEFT JOIN accounts a2 ON a2.id=t.toAccountId
     LEFT JOIN account_groups g ON a.groupId=g.id
     LEFT JOIN categories c ON c.id=t.categoryId
     ORDER BY t.date DESC, t.rowid DESC LIMIT 10
@@ -137,6 +138,21 @@ async function drawMonthChart(token){
       },
       fontFamily: FONT,
       animations: { enabled: false },
+      events: {
+        // Tap a month to open it in Transactions.
+        dataPointSelection(e, chart, opts) {
+          try {
+            const idx = opts && opts.dataPointIndex;
+            if (idx == null || idx < 0 || idx >= months.length) return;
+            const parts = months[idx].split("-");
+            txMonth = new Date(+parts[0], +parts[1] - 1, 1);
+            syncTxMonthInputs();
+            try { Haptics.tap("selection"); } catch {}
+            applyFilters();
+            goToPage("transactions");
+          } catch {}
+        }
+      }
     },
     colors: [INCOME, EXPENSE],
     grid: {
@@ -201,7 +217,7 @@ async function drawMonthChart(token){
 
 function drawCategoryChart(){
     const cats = query(`
-    SELECT c.name, SUM(t.amount) total
+    SELECT c.id, c.name, SUM(t.amount) total
     FROM categories c
     JOIN transactions t ON t.categoryId=c.id
     WHERE t.type = 'expense'
@@ -218,10 +234,26 @@ function drawCategoryChart(){
   }
   const max = Math.max(...cats.map(c => c.total || 0), 0);
   box.innerHTML = cats.map(c => `
-    <div class="catbar">
+    <div class="catbar" data-cat="${esc(c.id)}" title="Show in Transactions" role="button" tabindex="0">
       <span class="t-main"><span class="t-note">${esc(c.name)}</span></span>
       <span class="bar" role="img" aria-label="${esc(c.name)} ${fmt(c.total)}"><span style="width:${max ? Math.round((c.total || 0) / max * 100) : 0}%"></span></span>
       <span class="t-amt exp">${fmt(c.total)}</span>
     </div>
   `).join("");
+  // Tap a category to open it filtered in Transactions.
+  box.querySelectorAll("[data-cat]").forEach((el) => {
+    if (el.dataset.catWired) return;
+    el.dataset.catWired = "1";
+    const open = () => {
+      const sel = document.getElementById("fCategory");
+      if (sel) sel.value = el.dataset.cat;
+      try { Haptics.tap("selection"); } catch {}
+      applyFilters();
+      goToPage("transactions");
+    };
+    el.addEventListener("click", open);
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
+    });
+  });
 }

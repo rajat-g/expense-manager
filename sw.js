@@ -1,5 +1,5 @@
 // Expense Manager service worker - app-shell offline cache for iPhone Add to Home Screen.
-const CACHE = "expense-manager-v33";
+const CACHE = "expense-manager-v35";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -7,8 +7,10 @@ const APP_SHELL = [
   "./styles.css",
   "./vendor/web-haptics.js",
   "./haptics.js",
+  "./lock.js",
   "./utils.js",
   "./parsers.js",
+  "./recurring.js",
   "./database.js",
   "./dashboard.js",
   "./transactions.js",

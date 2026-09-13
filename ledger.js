@@ -8,8 +8,8 @@
 // Union merge by id (uuids), local wins same-id conflicts, tombstones delete.
 
 const Ledger = (() => {
-  const DIM_TABLES = ["account_groups", "accounts", "categories"];
-  const ALL_TABLES = ["account_groups", "accounts", "categories", "transactions", "tombstones"];
+  const DIM_TABLES = ["account_groups", "accounts", "categories", "recurring"];
+  const ALL_TABLES = ["account_groups", "accounts", "categories", "recurring", "transactions", "tombstones"];
 
   // "2026-09-14" -> "2026-09"; anything else -> "undated"
   function monthKey(dateStr) {
@@ -22,7 +22,7 @@ const Ledger = (() => {
 
   function emptyLedger() {
     return {
-      dims: { account_groups: [], accounts: [], categories: [], tombstones: [] },
+      dims: { account_groups: [], accounts: [], categories: [], recurring: [], tombstones: [] },
       months: {},
     };
   }
@@ -88,6 +88,7 @@ const Ledger = (() => {
       account_groups: (M.dims || {}).account_groups || [],
       accounts: (M.dims || {}).accounts || [],
       categories: (M.dims || {}).categories || [],
+      recurring: (M.dims || {}).recurring || [],
       tombstones: (M.dims || {}).tombstones || [],
       transactions: [],
     };
@@ -112,7 +113,6 @@ const Ledger = (() => {
       dims: pre + "dims.enc.json",
       month: (key) => pre + "months/" + key + ".enc.json",
       monthsDir: pre + "months",
-      legacy: String(backupFilePath || "").replace(/^\/+/, ""),
     };
   }
 

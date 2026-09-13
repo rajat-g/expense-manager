@@ -2,8 +2,9 @@
 
 // Render categories tables
 function renderCategories(){
-  const exp = query("SELECT * FROM categories WHERE type IN ('expense','both') ORDER BY name");
-  const inc = query("SELECT * FROM categories WHERE type IN ('income','both') ORDER BY name");
+  // The internal Transfer category (c_transfer) stays hidden: transfers pick it automatically.
+  const exp = query("SELECT * FROM categories WHERE type IN ('expense','both') AND id != 'c_transfer' ORDER BY name");
+  const inc = query("SELECT * FROM categories WHERE type IN ('income','both') AND id != 'c_transfer' ORDER BY name");
   
   const render = (rows, elId) => {
     $(elId).innerHTML = rows.map(r=>`

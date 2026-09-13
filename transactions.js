@@ -4,6 +4,7 @@
 let txMonth = null;
 let sheetWired = false;
 let editingTxId = null; // set while the bottom sheet edits an existing row
+let splitLines = null; // null = single-row mode, else [{ cat, amt }] split lines
 let filterTouched = false; // once the user toggles the bar, stop auto collapsing
 const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -29,12 +30,16 @@ function txDayHTML(dateStr, dInc, dExp) {
 
 function txRowHTML(r, withDelete) {
   const letter = ((r.cat || r.acc || "?").trim()[0] || "?").toUpperCase();
-  const sub = [r.cat || "", r.acc || ""].filter(Boolean).join(" · ");
+  const isXfer = r.type === "transfer";
+  const sub = isXfer
+    ? `${r.acc || ""} → ${r.toAcc || ""}`
+    : [r.cat || "", r.acc || ""].filter(Boolean).join(" · ");
+  const splitPill = r.splitId ? ` <span class="pill split">split</span>` : "";
   return `<div class="txrow" data-edit="${esc(r.id)}" tabindex="0" role="button" aria-label="Edit transaction ${esc(r.note || r.cat || "")} ${inr2(r.amount || 0)}">`
-    + `<span class="tile" title="${esc(r.cat || "")}">${esc(letter)}</span>`
-    + `<span class="t-main"><span class="t-note">${esc(r.note || r.cat || "-")}</span>`
-    + `<span class="t-sub">${esc(sub)}</span></span>`
-    + `<span class="t-amt ${r.type === "income" ? "inc" : "exp"}">${inr2(r.amount || 0)}</span>`
+    + `<span class="tile" title="${esc(isXfer ? "Transfer" : (r.cat || ""))}">${isXfer ? "⇄" : esc(letter)}</span>`
+    + `<span class="t-main"><span class="t-note">${esc(r.note || (isXfer ? "Transfer" : (r.cat || "-")))}</span>`
+    + `<span class="t-sub">${esc(sub)}${splitPill}</span></span>`
+    + `<span class="t-amt ${r.type === "income" ? "inc" : r.type === "expense" ? "exp" : ""}">${inr2(r.amount || 0)}</span>`
     + (withDelete ? `<button class="txdel" data-del="${r.id}" aria-label="Delete transaction">×</button>` : "")
     + `</div>`;
 }
@@ -82,12 +87,12 @@ function shiftTxMonth(n) {
 
 // Filter bar: dot when narrowed, auto-collapse on plain full-month views
 // (unless the user toggled it manually this session).
-function updateFilterBar(from, to, acc, cat, type) {
+function updateFilterBar(from, to, acc, cat, type, q) {
   const card = document.querySelector(".filtercard");
   const dot = $("#filterDot");
   const toggle = $("#filterToggle");
   if (!card || !dot || !toggle) return;
-  const narrowed = txRangeTitle(from, to) === "Custom range" || !!(acc || cat || type);
+  const narrowed = txRangeTitle(from, to) === "Custom range" || !!(acc || cat || type || q);
   dot.classList.toggle("on", narrowed);
   // Desktop shows the filter panel expanded; only phones auto-collapse it.
   const desktop = window.matchMedia && window.matchMedia("(min-width: 901px)").matches;
@@ -121,6 +126,8 @@ function setSheetMode() {
 }
 function openTxSheet() {
   editingTxId = null;
+  setSplitMode(false);
+  $("#txSplitHint").style.display = "none";
   setSheetMode();
   try { Haptics.tap("medium"); } catch {}
   $("#txSheet").classList.add("open");
@@ -132,17 +139,23 @@ function openTxEdit(id) {
   const r = queryOne("SELECT * FROM transactions WHERE id=?", [id]);
   if (!r || !r.id) return;
   editingTxId = r.id;
+  setSplitMode(false);
   $("#txDate").value = r.date || todayISO();
-  $("#txType").value = r.type === "income" ? "income" : "expense";
-  updateTxCategoryOptions();
+  $("#txType").value = r.type === "income" ? "income" : r.type === "transfer" ? "transfer" : "expense";
+  updateSheetTypeUI();
   // account / category may have been deleted since: fall back to first option
   const accSel = $("#txAccount"), catSel = $("#txCategory");
   accSel.value = r.accountId || "";
   if (!accSel.value && accSel.options.length) accSel.selectedIndex = 0;
-  catSel.value = r.categoryId || "";
-  if (!catSel.value && catSel.options.length) catSel.selectedIndex = 0;
+  if (r.type === "transfer") {
+    $("#txToAccount").value = r.toAccountId || "";
+  } else {
+    catSel.value = r.categoryId || "";
+    if (!catSel.value && catSel.options.length) catSel.selectedIndex = 0;
+  }
   $("#txAmount").value = r.amount ?? "";
   $("#txNote").value = r.note || "";
+  $("#txSplitHint").style.display = r.splitId ? "" : "none";
   setSheetMode();
   try { Haptics.tap("medium"); } catch {}
   $("#txSheet").classList.add("open");
@@ -150,7 +163,48 @@ function openTxEdit(id) {
   document.body.classList.add("sheet-open");
   setTimeout(() => { try { $("#txAmount").focus({ preventScroll: true }); } catch {} }, 280);
 }
-// Tap / Enter on a ledger row opens the editor; the × button still deletes.
+// ---- Split mode: one payment across several categories ----
+function setSplitMode(on) {
+  splitLines = on ? (splitLines && splitLines.length ? splitLines : [{ cat: "", amt: "" }, { cat: "", amt: "" }]) : null;
+  $("#txSplitWrap").style.display = on ? "" : "none";
+  $("#txAmount").disabled = !!on;
+  const btn = $("#txSplitBtn");
+  if (btn) btn.textContent = on ? "Unsplit" : "Split";
+  if (on) renderSplitLines();
+  else updateSplitTotal();
+}
+function renderSplitLines() {
+  const box = $("#txSplitLines");
+  const type = $("#txType").value || "expense";
+  const opts = txCatOptionsFor(type);
+  box.innerHTML = splitLines.map((ln, i) => `
+    <div class="split-line" data-i="${i}">
+      <select data-splitcat aria-label="Split category ${i + 1}">
+        <option value="">Category…</option>
+        ${opts.map(o => `<option value="${esc(o.id)}"${o.id === ln.cat ? " selected" : ""}>${esc(o.name)}</option>`).join("")}
+      </select>
+      <input type="number" data-splitamt step="0.01" inputmode="decimal" placeholder="0.00" value="${esc(ln.amt)}" aria-label="Split amount ${i + 1}">
+      <button type="button" class="txdel" data-splitdel="${i}" aria-label="Remove split line">×</button>
+    </div>`).join("");
+  box.querySelectorAll("[data-splitcat]").forEach(sel => {
+    sel.onchange = () => { splitLines[+sel.closest(".split-line").dataset.i].cat = sel.value; };
+  });
+  box.querySelectorAll("[data-splitamt]").forEach(inp => {
+    inp.oninput = () => { splitLines[+inp.closest(".split-line").dataset.i].amt = inp.value; updateSplitTotal(); };
+  });
+  box.querySelectorAll("[data-splitdel]").forEach(b => {
+    b.onclick = () => {
+      splitLines.splice(+b.dataset.splitdel, 1);
+      if (splitLines.length < 2) setSplitMode(false);
+      else renderSplitLines();
+    };
+  });
+  updateSplitTotal();
+}
+function updateSplitTotal() {
+  const total = (splitLines || []).reduce((s, ln) => s + (Number(ln.amt) || 0), 0);
+  $("#txAmount").value = total ? String(Math.round(total * 100) / 100) : "";
+}
 function wireTxEdit(scope) {
   if (!scope || typeof scope.querySelectorAll !== "function") return;
   scope.querySelectorAll("[data-edit]").forEach((row) => {
@@ -179,6 +233,16 @@ function wireTxSheet() {
   const x = $("#txSheetX");
   if (x) x.onclick = closeTxSheet;
   $("#sheetBackdrop").onclick = closeTxSheet;
+  const splitBtn = $("#txSplitBtn");
+  if (splitBtn && !splitBtn.dataset.wired) {
+    splitBtn.dataset.wired = "1";
+    splitBtn.onclick = () => setSplitMode(!splitLines);
+  }
+  const splitAdd = $("#txSplitAdd");
+  if (splitAdd && !splitAdd.dataset.wired) {
+    splitAdd.dataset.wired = "1";
+    splitAdd.onclick = () => { splitLines.push({ cat: "", amt: "" }); renderSplitLines(); };
+  }
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeTxSheet(); });
 }
 
@@ -190,7 +254,7 @@ function renderTxSelectors(){
     LEFT JOIN account_groups g ON a.groupId = g.id
     ORDER BY g.name, a.name
   `);
-  const cats = query("SELECT id,name,type FROM categories ORDER BY name");
+  const cats = query("SELECT id,name,type FROM categories WHERE id != 'c_transfer' ORDER BY name");
   
   // Format account names with group info
   const formattedAccs = accs.map(acc => ({
@@ -200,15 +264,31 @@ function renderTxSelectors(){
   
   // add form
   fillSelect($("#txAccount"), formattedAccs, "id","name");
+  fillSelect($("#txToAccount"), formattedAccs, "id","name");
   // filter categories by current selected type for add form
-  updateTxCategoryOptions();
+  updateSheetTypeUI();
   // filters
   fillSelect($("#fAccount"), [{id:"",name:"All"}, ...formattedAccs], "id","name");
   fillSelect($("#fCategory"), [{id:"",name:"All"}, ...cats], "id","name");
 
   // react to type change on add form
   const typeSel = $("#txType");
-  if(typeSel){ typeSel.onchange = ()=>updateTxCategoryOptions(); }
+  if(typeSel){ typeSel.onchange = ()=>updateSheetTypeUI(); }
+
+  // global search across the ledger (debounced)
+  const searchEl = $("#txSearch");
+  if (searchEl && !searchEl.dataset.wired) {
+    searchEl.dataset.wired = "1";
+    let deb = null;
+    searchEl.addEventListener("input", () => {
+      clearTimeout(deb);
+      deb = setTimeout(() => applyFilters(), 300);
+    });
+  }
+
+  // recurring templates live on their own page (opened from the filter bar)
+  const recBtn = $("#recurringBtn");
+  if (recBtn) recBtn.onclick = () => goToPage("recurring");
 
   // ledger month pager + quick-add sheet (idempotent: renderTxSelectors re-runs)
   if(!txMonth){
@@ -223,23 +303,60 @@ function renderTxSelectors(){
 }
 
 // Save the sheet form: INSERT in add mode, UPDATE in edit mode.
+// Transfer and split rows are handled as variants of the same form.
 function addTransaction(){
   const date = $("#txDate").value || todayISO();
   const accountId = $("#txAccount").value;
   const type = $("#txType").value;
+  const note = $("#txNote").value||"";
+  const fail = (msg) => { try { Haptics.tap("error"); } catch {} alert(msg); };
+
+  // Transfers move money between own accounts (never income/expense).
+  if (type === "transfer") {
+    const toAccountId = $("#txToAccount").value;
+    const amount = Number($("#txAmount").value||0);
+    if (!accountId || !toAccountId || !amount) { fail("Please fill from-account, to-account, amount"); return; }
+    if (accountId === toAccountId) { fail("From and To accounts must differ."); return; }
+    if (editingTxId) {
+      exec("UPDATE transactions SET date=?, accountId=?, categoryId='c_transfer', type='transfer', amount=?, note=?, toAccountId=? WHERE id=?",
+        [date, accountId, amount, note, toAccountId, editingTxId]);
+      editingTxId = null;
+    } else {
+      exec("INSERT INTO transactions(id,date,accountId,categoryId,type,amount,note,toAccountId) VALUES (?,?,?,?,?,?,?,?)",
+        [uuid(), date, accountId, "c_transfer", type, amount, note, toAccountId]);
+    }
+    return afterTxSave();
+  }
+
+  // Splits fan one payment out across several categories.
+  if (splitLines) {
+    if (editingTxId) { fail("Split parts are edited one by one."); return; }
+    const lines = splitLines
+      .map((ln) => ({ cat: ln.cat, amt: Number(ln.amt) || 0 }))
+      .filter((ln) => ln.cat && ln.amt > 0);
+    if (lines.length < 2) { fail("A split needs at least two filled lines."); return; }
+    const sid = uuid();
+    const stmt = db.prepare("INSERT INTO transactions(id,date,accountId,categoryId,type,amount,note,splitId) VALUES (?,?,?,?,?,?,?,?)");
+    for (const ln of lines) {
+      const cat = queryOne("SELECT type FROM categories WHERE id=?", [ln.cat]);
+      if (cat && !(cat.type===type || cat.type==='both')) { stmt.free(); fail("A split line uses a category of the wrong type."); return; }
+      stmt.run([uuid(), date, accountId, ln.cat, type, ln.amt, note, sid]);
+    }
+    stmt.free();
+    return afterTxSave();
+  }
+
   const categoryId = $("#txCategory").value;
   const amount = Number($("#txAmount").value||0);
-  const note = $("#txNote").value||"";
-  if(!accountId || !categoryId || !amount){ try { Haptics.tap("error"); } catch {} alert("Please fill account, category, amount"); return; }
+  if(!accountId || !categoryId || !amount){ fail("Please fill account, category, amount"); return; }
   // validate category matches selected type (or is 'both')
   const cat = queryOne("SELECT type FROM categories WHERE id=?", [categoryId]);
   if(cat && !(cat.type===type || cat.type==='both')){
-    try { Haptics.tap("error"); } catch {}
-    alert("Selected category does not match the chosen type.");
+    fail("Selected category does not match the chosen type.");
     return;
   }
   if (editingTxId) {
-    exec("UPDATE transactions SET date=?, accountId=?, categoryId=?, type=?, amount=?, note=? WHERE id=?",
+    exec("UPDATE transactions SET date=?, accountId=?, categoryId=?, type=?, amount=?, note=?, toAccountId=NULL WHERE id=?",
       [date, accountId, categoryId, type, amount, note, editingTxId]);
     editingTxId = null;
   } else {
@@ -247,6 +364,11 @@ function addTransaction(){
     const stmt = db.prepare("INSERT INTO transactions(id,date,accountId,categoryId,type,amount,note) VALUES (?,?,?,?,?,?,?)");
     stmt.run([id,date,accountId,categoryId,type,amount,note]); stmt.free();
   }
+  afterTxSave();
+}
+
+// Shared post-save: persist, reset the sheet, refresh every surface.
+function afterTxSave(){
   saveDB();
   setSheetMode();
   clearTxForm(false);
@@ -258,6 +380,8 @@ function addTransaction(){
 
 // Clear transaction form
 function clearTxForm(clearAll=true){
+  if (splitLines) setSplitMode(false);
+  $("#txAmount").disabled = false;
   if(clearAll){ 
     $("#txDate").value = todayISO(); 
     $("#txAccount").selectedIndex=0; 
@@ -272,26 +396,34 @@ function clearTxForm(clearAll=true){
 function applyFilters(){
   const from = $("#fFrom").value, to = $("#fTo").value;
   const acc = $("#fAccount").value, cat = $("#fCategory").value, type = $("#fType").value;
+  const q = ($("#txSearch").value || "").trim();
   let sql = `
-    SELECT t.*, a.name as acc, g.name as groupName, c.name as cat
+    SELECT t.*, a.name as acc, a2.name as toAcc, g.name as groupName, c.name as cat
     FROM transactions t
     LEFT JOIN accounts a ON a.id=t.accountId
+    LEFT JOIN accounts a2 ON a2.id=t.toAccountId
     LEFT JOIN account_groups g ON a.groupId=g.id
     LEFT JOIN categories c ON c.id=t.categoryId
     WHERE 1=1`;
   const params = [];
   if(from){ sql += " AND t.date >= ?"; params.push(from); }
   if(to){ sql += " AND t.date <= ?"; params.push(to); }
-  if(acc){ sql += " AND t.accountId = ?"; params.push(acc); }
+  if(acc){ sql += " AND (t.accountId = ? OR t.toAccountId = ?)"; params.push(acc, acc); }
   if(cat){ sql += " AND t.categoryId = ?"; params.push(cat); }
   if(type){ sql += " AND t.type = ?"; params.push(type); }
+  if(q){
+    const like = "%" + q.replace(/[\\%_]/g, (m) => "\\" + m) + "%";
+    sql += " AND (t.note LIKE ? ESCAPE '\\' OR c.name LIKE ? ESCAPE '\\' OR a.name LIKE ? ESCAPE '\\' OR a2.name LIKE ? ESCAPE '\\' OR CAST(t.amount AS TEXT) LIKE ?)";
+    params.push(like, like, like, like, like);
+  }
   sql += " ORDER BY t.date DESC, t.rowid DESC";
 
   const rows = query(sql, params);
 
   // summary strip + month title follow the same filtered range
+  // (transfers move money between own accounts: excluded from in/out)
   let sInc = 0, sExp = 0;
-  for (const r of rows) { if (r.type === "income") sInc += r.amount || 0; else sExp += r.amount || 0; }
+  for (const r of rows) { if (r.type === "income") sInc += r.amount || 0; else if (r.type === "expense") sExp += r.amount || 0; }
   $("#txSumInc").textContent = inr2(sInc);
   $("#txSumExp").textContent = inr2(sExp);
   $("#txSumNet").textContent = (sInc - sExp < 0 ? "-" : "") + inr2(Math.abs(sInc - sExp));
@@ -301,11 +433,11 @@ function applyFilters(){
   const list = $("#txList");
   if (!rows.length) {
     list.innerHTML = `<div class="tx-empty">No entries in this view.<br/>Tap + to add one.</div>`;
-    updateFilterBar(from, to, acc, cat, type);
+    updateFilterBar(from, to, acc, cat, type, q);
     return;
   }
   list.innerHTML = txGroupsHTML(rows, true);
-  updateFilterBar(from, to, acc, cat, type);
+  updateFilterBar(from, to, acc, cat, type, q);
 
   // delete handlers
   $$("#txList [data-del]").forEach(b=>{
@@ -325,11 +457,30 @@ function applyFilters(){
   wireTxEdit(list);
 }
 
+// Category options for the sheet form (internal Transfer category excluded;
+// transfers lock to it automatically).
+function txCatOptionsFor(type) {
+  if (type === "transfer") return [{ id: "c_transfer", name: "Transfer" }];
+  return query("SELECT id,name FROM categories WHERE (type=? OR type='both') AND id != 'c_transfer' ORDER BY name", [type]);
+}
+
+// Show/hide the transfer + split sheet chrome for the chosen type.
+function updateSheetTypeUI(){
+  const type = $("#txType").value || "expense";
+  const isXfer = type === "transfer";
+  $("#txToWrap").style.display = isXfer ? "" : "none";
+  $("#txCatWrap").style.display = isXfer ? "none" : "";
+  $("#txFromLabel").textContent = isXfer ? "From account" : "Account";
+  $("#txSplitBtn").style.display = (isXfer || editingTxId) ? "none" : "";
+  if (isXfer) setSplitMode(false);
+  updateTxCategoryOptions();
+}
+
 // Update add-form category options based on selected type
 function updateTxCategoryOptions(){
   const type = $("#txType").value || 'expense';
-  const rows = query("SELECT id,name FROM categories WHERE type=? OR type='both' ORDER BY name", [type]);
-  fillSelect($("#txCategory"), rows, "id", "name");
+  fillSelect($("#txCategory"), txCatOptionsFor(type), "id", "name");
+  if (splitLines) renderSplitLines();
 }
 
 // Export transactions to CSV
@@ -337,22 +488,29 @@ function exportTransactionsCsv(){
   // gather same data as applyFilters, but CSV
   const from = $("#fFrom").value, to = $("#fTo").value;
   const acc = $("#fAccount").value, cat = $("#fCategory").value, type = $("#fType").value;
+  const q = ($("#txSearch").value || "").trim();
   let sql = `
-    SELECT t.date, a.name as account, c.name as category, t.type, t.note, t.amount
+    SELECT t.date, a.name as account, a2.name as toAccount, c.name as category, t.type, t.note, t.amount, t.splitId
     FROM transactions t
     LEFT JOIN accounts a ON a.id=t.accountId
+    LEFT JOIN accounts a2 ON a2.id=t.toAccountId
     LEFT JOIN categories c ON c.id=t.categoryId
     WHERE 1=1`;
   const params = [];
   if(from){ sql+=" AND t.date>=?"; params.push(from); }
   if(to){ sql+=" AND t.date<=?"; params.push(to); }
-  if(acc){ sql+=" AND t.accountId=?"; params.push(acc); }
+  if(acc){ sql+=" AND (t.accountId=? OR t.toAccountId=?)"; params.push(acc, acc); }
   if(cat){ sql+=" AND t.categoryId=?"; params.push(cat); }
   if(type){ sql+=" AND t.type=?"; params.push(type); }
+  if(q){
+    const like = "%" + q.replace(/[\\%_]/g, (m) => "\\" + m) + "%";
+    sql += " AND (t.note LIKE ? ESCAPE '\\' OR c.name LIKE ? ESCAPE '\\' OR a.name LIKE ? ESCAPE '\\' OR a2.name LIKE ? ESCAPE '\\' OR CAST(t.amount AS TEXT) LIKE ?)";
+    params.push(like, like, like, like, like);
+  }
   sql += " ORDER BY t.date DESC, t.rowid DESC";
   const rows = query(sql, params);
-  const csv = "Date,Account,Category,Type,Note,Amount\n" + rows.map(r=>[
-    r.date, r.account, r.category, r.type, (r.note||"").replace(/"/g,'""'), r.amount
+  const csv = "Date,Account,ToAccount,Category,Type,Note,Amount,SplitId\n" + rows.map(r=>[
+    r.date, r.account, r.toAccount, r.category, r.type, (r.note||"").replace(/"/g,'""'), r.amount, r.splitId
   ].map(x=>`"${x??""}"`).join(",")).join("\n");
   downloadBlob(new Blob([csv],{type:"text/csv"}), "transactions.csv");
 }
