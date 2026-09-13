@@ -74,6 +74,53 @@ const GhSync = (() => {
     localStorage.setItem(LS_KEY, JSON.stringify(cfg));
   }
 
+  // Last successful push/pull timestamps (separate key: readForm() must stay
+  // form-only so saving settings never wipes them).
+  const TIMES_KEY = "expense_gh_sync_times_v1";
+
+  function getSyncTimes() {
+    try {
+      const t = JSON.parse(localStorage.getItem(TIMES_KEY) || "{}");
+      return { push: t.push || null, pull: t.pull || null };
+    } catch { return { push: null, pull: null }; }
+  }
+
+  function timeAgo(iso) {
+    const t = Date.parse(iso || "");
+    if (!t) return "never";
+    const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (s < 60) return "just now";
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} min ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} hr ago`;
+    const d = Math.floor(h / 24);
+    if (d === 1) return "yesterday";
+    if (d < 30) return `${d} days ago`;
+    return new Date(t).toLocaleDateString();
+  }
+
+  function markSync(kind) {
+    try {
+      const t = getSyncTimes();
+      t[kind] = new Date().toISOString();
+      localStorage.setItem(TIMES_KEY, JSON.stringify(t));
+    } catch {}
+    renderSyncTimes();
+  }
+
+  // Shown only when sync is correctly configured; hidden otherwise.
+  function renderSyncTimes() {
+    const el = $("ghSyncTimes");
+    if (!el) return;
+    let configured = false;
+    try { configured = isConfiguredForSync(readForm()); } catch {}
+    if (!configured) { el.style.display = "none"; return; }
+    el.style.display = "";
+    const t = getSyncTimes();
+    el.textContent = `Last push: ${timeAgo(t.push)} · Last pull: ${timeAgo(t.pull)}`;
+  }
+
   function setStatus(msg, isErr) {
     const el = $("ghStatus");
     if (el) {
@@ -461,6 +508,7 @@ const GhSync = (() => {
         }
       } catch {}
       saveCfg(cfg);
+      markSync("push");
       setStatus(`Pushed ${txCount} transaction(s) across ${Object.keys(merged.months).length} month(s) to ${cfg.owner}/${cfg.repo}@${cfg.branch}:${paths.dir || "/"} ✓ (legacy single file left untouched)`);
     } catch (e) {
       try { suppressAuto = false; } catch {}
@@ -485,6 +533,7 @@ const GhSync = (() => {
       }
       replaceAllTables(flat);
       saveCfg(cfg);
+      markSync("pull");
       setStatus(`Pulled ${txCount} transaction(s) across ${Object.keys(remote.months).length} month(s) ✓`);
     } catch (e) {
       try { suppressAuto = false; } catch {}
@@ -554,6 +603,7 @@ const GhSync = (() => {
       replaceAllTables(Ledger.flattenLedger(remote));
       try { if (typeof Inbox !== "undefined" && Inbox.refreshRemote) await Inbox.refreshRemote(); } catch {}
       saveCfg(cfg);
+      markSync("pull");
       setStatus(`Auto-pulled backup + messages as @${login} ✓`);
       return true;
     } catch (e) {
@@ -687,6 +737,7 @@ const GhSync = (() => {
       writeOutbox(remaining);
       try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {}
       saveCfg(cfg);
+      if (ok > 0) markSync("push");
       setMsgStatus(remaining.length
         ? `Uploaded ${ok}, ${remaining.length} still queued (see console).`
         : `Uploaded ${ok} message(s) to ${cfg.owner}/${cfg.repo}@${cfg.branch}:${msgFolder(cfg)}/ ✓`, remaining.length > 0);
@@ -858,6 +909,7 @@ const GhSync = (() => {
     if ($("ghSaveBtn")) $("ghSaveBtn").onclick = () => {
       const cfg = readForm();
       saveCfg(cfg);
+      renderSyncTimes();
       setStatus(cfg.token ? "Settings saved on this device (token stored locally)." : "Settings saved (no token entered).");
     };
     if ($("ghUseRemoteBtn")) $("ghUseRemoteBtn").onclick = fillFromRemote;
@@ -885,13 +937,14 @@ const GhSync = (() => {
         else setMsgStatus("Inbox module not ready.", true);
       } catch (e) { setMsgStatus(e?.message || e, true); }
     };
-    if ($("ghAuto")) $("ghAuto").onchange = () => saveCfg(readForm());
-    if ($("ghAutoPull")) $("ghAutoPull").onchange = () => saveCfg(readForm());
+    if ($("ghAuto")) $("ghAuto").onchange = () => { saveCfg(readForm()); renderSyncTimes(); };
+    if ($("ghAutoPull")) $("ghAutoPull").onchange = () => { saveCfg(readForm()); renderSyncTimes(); };
     ["ghRemoteUrl","ghPath","ghMsgFolder","ghBranch","ghToken","ghPassphrase"].forEach((id) => {
       const el = $(id);
-      if (el) el.addEventListener("change", () => saveCfg(readForm()));
+      if (el) el.addEventListener("change", () => { saveCfg(readForm()); renderSyncTimes(); });
     });
     if ($("installHelpBtn")) $("installHelpBtn").onclick = pwaStatus;
+    renderSyncTimes();
     hookAutoSave();
   }
 
@@ -902,5 +955,5 @@ const GhSync = (() => {
     initSyncUI();
   }
 
-  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, migrateLocalMessages, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured };
+  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, migrateLocalMessages, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured, markSync, renderSyncTimes };
 })();

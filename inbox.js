@@ -155,6 +155,7 @@ const Inbox = (() => {
         try { renderInbox(); } catch {}
       });
       remoteCache = items;
+      try { if (typeof GhSync !== "undefined" && GhSync.markSync) GhSync.markSync("pull"); } catch {}
     } catch (e) {
       fetchError = e?.message || String(e);
     }
