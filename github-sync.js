@@ -1224,7 +1224,13 @@ const GhSync = (() => {
     ensureProbeTimer();
     probeConnection();
     try {
-      window.addEventListener("online", () => probeConnection());
+      window.addEventListener("online", async () => {
+        const reachable = await probeConnection();
+        if (!reachable) return;
+        let cfg = {};
+        try { cfg = storedCfg(); } catch { return; }
+        if (cfg.autoPull && !document.hidden) pollOnce();
+      });
       window.addEventListener("offline", () => setConn("offline"));
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) return;

@@ -655,8 +655,18 @@ footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
 @media(max-width:560px){
   .grid-2, .grid-3{grid-template-columns:1fr}
   th:nth-child(2), td:nth-child(2){display:none}
+  #categories th:nth-child(2), #categories td:nth-child(2){display:table-cell}
+  #categories td.right{padding-left:4px; padding-right:4px}
+  #categories td.right .btn-ghost{padding-left:7px; padding-right:7px}
+}
+@media(min-width:561px){
+  #categories .grid-2 > .subgroup{padding-top:0}
+  #categories .grid-2 > .subgroup + .subgroup{margin-top:0; border-top:none}
 }
 @media(max-width:380px){
+  .topbar{gap:6px; padding-left:10px; padding-right:10px}
+  .sync-chip{max-width:42vw; min-width:0; padding-left:8px; padding-right:8px; gap:5px}
+  .sync-chip span:last-child{min-width:0; overflow:hidden; text-overflow:ellipsis}
   .sheet-grid{grid-template-columns:1fr}
   .sheet-grid .span2{grid-column:auto}
 }
