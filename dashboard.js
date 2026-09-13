@@ -183,6 +183,10 @@ async function drawMonthChart(token){
   };
 
   try {
+    // Drop the skeleton placeholder first: otherwise the chart SVG renders
+    // underneath it and gets clipped by the fixed-height container.
+    const skel = box.querySelector(".skel");
+    if (skel) skel.remove();
     if (monthChart) {
       monthChart.updateOptions(options);
     } else {
