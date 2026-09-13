@@ -233,6 +233,7 @@ function initMobileNav(){
 function initNav(){
   $$("nav button").forEach(btn=>{
     btn.onclick = ()=>{
+      try { if (typeof Haptics !== "undefined") Haptics.tap("selection"); } catch {}
       $$("nav button").forEach(b=>b.classList.remove("active"));
       btn.classList.add("active");
       const page = btn.dataset.page;
@@ -261,6 +262,34 @@ function initNav(){
       }
     }
   }catch(e){}
+}
+
+// Show any page by id (also used for pages with no nav button, like FAQ).
+// Optionally jumps to + flashes an in-page anchor (details element).
+function showPage(id, anchor){
+  $$(".page").forEach(p=>p.style.display="none");
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.style.display="block";
+  document.body.dataset.page = id;
+  const navBtn = document.querySelector(`nav button[data-page="${id}"]`);
+  $$("nav button").forEach(b=>b.classList.remove("active"));
+  if(navBtn) navBtn.classList.add("active");
+  const scroller = (window.innerWidth >= 901) ? document.querySelector("main") : null;
+  if (scroller) scroller.scrollTop = 0; else window.scrollTo(0, 0);
+  if (anchor) {
+    const t = document.getElementById(anchor);
+    if (t) {
+      if (t.tagName === "DETAILS" && !t.open) t.open = true;
+      setTimeout(() => {
+        try { t.scrollIntoView({ block: "start" }); } catch {}
+        t.classList.remove("flash");
+        void t.offsetWidth;
+        t.classList.add("flash");
+      }, 60);
+    }
+  }
+  try { if (navBtn) localStorage.setItem(PAGE_KEY, id); } catch(e) {}
 }
 
 // Set default dates for forms

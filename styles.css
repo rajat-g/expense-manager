@@ -138,6 +138,32 @@ a:hover{text-decoration:underline}
 .seg button{border:none; background:transparent; color:var(--secondary); font-weight:600; font-size:14px; padding:9px 16px; border-radius:9px; display:inline-flex; align-items:center; gap:8px}
 .seg button svg{width:17px; height:17px}
 .seg button[aria-pressed="true"]{background:var(--card); color:var(--text); box-shadow:var(--shadow)}
+
+/* info buttons + FAQ */
+.info-btn{
+  width:26px; height:26px; border-radius:50%; flex:none;
+  border:1px solid var(--separator); background:var(--card2); color:var(--secondary);
+  font-family:var(--serif); font-style:italic; font-weight:700; font-size:15px; line-height:1;
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer; margin-left:8px; vertical-align:2px;
+}
+.info-btn:hover{color:var(--text); border-color:var(--copper)}
+details.faq{border-bottom:1px solid var(--separator); border-radius:12px; padding:4px 6px}
+details.faq:last-child{border-bottom:none}
+details.faq summary{
+  cursor:pointer; font-weight:600; font-size:15.5px; line-height:1.4;
+  padding:12px 4px; list-style:none; display:flex; align-items:baseline; gap:10px;
+}
+details.faq summary::-webkit-details-marker{display:none}
+details.faq summary::after{content:"+"; margin-left:auto; color:var(--tertiary); font-weight:400; font-size:18px; flex:none}
+details.faq[open] summary::after{content:"–"; color:var(--copper)}
+details.faq summary:hover{color:var(--copper)}
+details.faq > div{padding:2px 4px 14px; font-size:14px; line-height:1.65}
+details.faq.flash{animation:faqflash 1.8s ease-out}
+@keyframes faqflash{
+  0%, 25%{background:var(--copper-tint)}
+  100%{background:transparent}
+}
 .sidebar-foot{margin-top:auto; padding-top:12px; display:flex; justify-content:center}
 .sidebar-foot .theme-btn{width:40px; height:40px}
 .sync-chip{
@@ -441,6 +467,7 @@ footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
   #txSheet.open{transform:translate(-50%, -50%); opacity:1; visibility:visible; transition:transform .22s ease-out, opacity .18s ease-out, visibility 0s}
   /* form-heavy settings read better capped */
   #settings.page .card{max-width:880px}
+  #faq.page .card{max-width:880px}
 }
 /* wide desktop: full labeled sidebar */
 @media(min-width:1151px){
@@ -518,5 +545,5 @@ footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
   .sheet-grid .span2{grid-column:auto}
 }
 @media (prefers-reduced-motion: reduce){
-  *{transition:none !important}
+  *{transition:none !important; animation:none !important}
 }

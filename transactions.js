@@ -75,6 +75,7 @@ function syncTxMonthInputs() {
 }
 function shiftTxMonth(n) {
   txMonth = new Date(txMonth.getFullYear(), txMonth.getMonth() + n, 1);
+  try { Haptics.tap("selection"); } catch {}
   syncTxMonthInputs();
   applyFilters();
 }
@@ -121,6 +122,7 @@ function setSheetMode() {
 function openTxSheet() {
   editingTxId = null;
   setSheetMode();
+  try { Haptics.tap("medium"); } catch {}
   $("#txSheet").classList.add("open");
   $("#sheetBackdrop").classList.add("open");
   document.body.classList.add("sheet-open");
@@ -142,6 +144,7 @@ function openTxEdit(id) {
   $("#txAmount").value = r.amount ?? "";
   $("#txNote").value = r.note || "";
   setSheetMode();
+  try { Haptics.tap("medium"); } catch {}
   $("#txSheet").classList.add("open");
   $("#sheetBackdrop").classList.add("open");
   document.body.classList.add("sheet-open");
@@ -227,10 +230,11 @@ function addTransaction(){
   const categoryId = $("#txCategory").value;
   const amount = Number($("#txAmount").value||0);
   const note = $("#txNote").value||"";
-  if(!accountId || !categoryId || !amount){ alert("Please fill account, category, amount"); return; }
+  if(!accountId || !categoryId || !amount){ try { Haptics.tap("error"); } catch {} alert("Please fill account, category, amount"); return; }
   // validate category matches selected type (or is 'both')
   const cat = queryOne("SELECT type FROM categories WHERE id=?", [categoryId]);
   if(cat && !(cat.type===type || cat.type==='both')){
+    try { Haptics.tap("error"); } catch {}
     alert("Selected category does not match the chosen type.");
     return;
   }
@@ -247,6 +251,7 @@ function addTransaction(){
   setSheetMode();
   clearTxForm(false);
   closeTxSheet();
+  try { Haptics.tap("success"); } catch {}
   applyFilters();
   refreshDashboardBits();
 }
@@ -305,11 +310,13 @@ function applyFilters(){
   // delete handlers
   $$("#txList [data-del]").forEach(b=>{
     b.onclick = (e)=>{
+      try { Haptics.tap("warning"); } catch {}
       if(!confirm("Delete this transaction?")) return;
       e.stopPropagation();
       exec("DELETE FROM transactions WHERE id=?", [b.dataset.del]);
       recordTombstone(b.dataset.del, "transactions");
       saveDB();
+      try { Haptics.tap("success"); } catch {}
       applyFilters();
       refreshDashboardBits();
     };

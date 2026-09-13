@@ -302,6 +302,14 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
     <section id="settings" class="page" style="display:none">
       <header class="pagehead"><h1>Settings</h1><p class="sub">Install, backup, sync and data.</p></header>
       <div class="card">
+        <div class="toolbar">
+          <div><h2 style="margin:0">Help &amp; FAQ</h2><p class="muted" style="font-size:13px;margin:4px 0 0">Sync, tombstones, encryption, multiple devices.</p></div>
+          <div class="spacer"></div>
+          <button type="button" class="btn btn-ghost" data-faq="">Open FAQ</button>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>Appearance</h2>
         <p class="muted" style="font-size:13px;line-height:1.5;margin:0 0 10px">Dark is the default. Pick whichever you prefer — it stays on this device.</p>
         <div class="seg" role="group" aria-label="Color theme">
@@ -324,7 +332,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h2>Encrypted GitHub Backup (pass-style)</h2>
+        <h2>Encrypted GitHub Backup (pass-style)<button type="button" class="info-btn" data-faq="faq-sync" aria-label="How does sync work?">i</button></h2>
         <p class="muted" style="font-size:13px;line-height:1.5">
           Like <b>passwordstore.org</b>: your data is encrypted on this device, then stored
           as <b>monthly shards</b> (one file per month plus dimensions) in your private repo.
@@ -381,7 +389,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         </div>
 
         <div class="subgroup">
-          <h2>Messages</h2>
+          <h2>Messages<button type="button" class="info-btn" data-faq="faq-messages" aria-label="Where do inbox messages live?">i</button></h2>
           <p class="muted" style="font-size:13px;line-height:1.5;margin:0 0 8px">
             Each SMS becomes one encrypted file in the folder above, plus a temporary outbox
             until upload — never in local SQLite. Refresh only fills this device's view.
@@ -430,14 +438,70 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
       </div>
 
       <div class="card" style="margin-top:12px">
-        <h2>Danger Zone</h2>
+        <h2>Danger Zone<button type="button" class="info-btn" data-faq="faq-clear-vs-nuke" aria-label="Clear versus Delete Everything — what's the difference?">i</button></h2>
         <div class="toolbar">
           <button id="seedBtn" class="btn btn-ghost">Seed Sample Data</button>
           <button id="clearBtn" class="btn btn-danger">Clear Database</button>
         </div>
+        <p class="muted" style="font-size:13px;line-height:1.5;margin:10px 0 0">Clear Database wipes this device and deletes the encrypted backup from GitHub (other devices drop the data too).</p>
+        <div class="toolbar" style="margin-top:8px">
+          <button id="nukeBtn" class="btn btn-danger">Delete Everything (Device + GitHub)</button>
+        </div>
+        <p class="muted" style="font-size:13px;line-height:1.5;margin:10px 0 0">Plain wipe: device ledger plus all backup and message files on GitHub, no tombstones kept. Other devices will re-upload their data on next sync.</p>
+        <div id="dangerStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5" aria-live="polite"></div>
       </div>
 
       <footer style="margin-top:12px">On-device ledger · encrypted GitHub backup · works offline.<br/>Open source: <a href="https://github.com/rajat-g/expense-manager">github.com/rajat-g/expense-manager</a></footer>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="page" style="display:none">
+      <header class="pagehead">
+        <div class="toolbar" style="margin-bottom:4px">
+          <button id="faqBackBtn" class="btn btn-ghost" type="button">← Settings</button>
+        </div>
+        <h1>Help &amp; FAQ</h1><p class="sub">How sync, backup and privacy actually work.</p>
+      </header>
+      <div class="card">
+        <details class="faq" id="faq-sync">
+          <summary>How does sync work with multiple devices?</summary>
+          <div class="muted">Your ledger lives on each device. GitHub holds one encrypted file per shard (dimensions + one file per month). Every push <b>pulls first</b>, unions both sides by id (the pushing device wins ties), writes the merged result back locally <b>and</b> to GitHub — so no device silently overwrites another. Empty month files are deleted from the repo.</div>
+        </details>
+        <details class="faq" id="faq-clear-vs-nuke">
+          <summary>Clear Database vs Delete Everything — what's the difference?</summary>
+          <div class="muted"><b>Clear Database</b> wipes this device and deletes the backup from GitHub, but keeps a deletion log (tombstones), so your <b>other devices drop the data too</b> on their next sync. Messages are untouched.<br/><b>Delete Everything</b> is the plain wipe: device ledger plus all backup <b>and</b> message files on GitHub, with <b>no tombstones kept</b>. Simpler — but any other device still holding data will re-upload it on its next sync.</div>
+        </details>
+        <details class="faq" id="faq-came-back">
+          <summary>Deleted or cleared data came back. Why?</summary>
+          <div class="muted">Almost always one of these: (1) another device re-uploaded it — it never got the deletion (see above); push from the device that still has it, or delete it there too. (2) The wipe happened on an older app version that didn't tombstone clears — clear again with this version. (3) Auto-pull on startup replaced your local data with the remote backup — that's its job; turn it off in Settings if you don't want it.</div>
+        </details>
+        <details class="faq" id="faq-conflicts">
+          <summary>What if I edit the same record on two devices?</summary>
+          <div class="muted">The pushing device's copy wins for that record (last push wins overall). Different records never conflict — both are kept. If that creates a duplicate, delete one copy anywhere and sync.</div>
+        </details>
+        <details class="faq" id="faq-new-device">
+          <summary>How do I add a new device?</summary>
+          <div class="muted">Install the app, enter the same remote URL, token and passphrase, then <b>Pull &amp; decrypt</b> (or enable auto-pull). Pull before pushing anything, so you don't upload an empty ledger over your backup.</div>
+        </details>
+        <details class="faq" id="faq-auto">
+          <summary>What do auto-push and auto-pull do?</summary>
+          <div class="muted"><b>Auto-push</b> uploads ~3 seconds after each local change (never during wipes). <b>Auto-pull</b> replaces local data with the backup on startup, only when the connection verifies. Both need the remote, token and passphrase saved.</div>
+        </details>
+        <details class="faq" id="faq-encryption">
+          <summary>Who can read my data on GitHub?</summary>
+          <div class="muted">Only you. Everything is encrypted on your device before upload; GitHub only ever sees ciphertext. The passphrase lives in this browser and is never sent anywhere. The token only grants read+write on your backup repo. There is no server, no database and no analytics.</div>
+        </details>
+        <details class="faq" id="faq-messages">
+          <summary>Where do inbox messages live?</summary>
+          <div class="muted">Each SMS becomes one encrypted file in your messages folder on GitHub, plus a temporary outbox on the device until upload — never in local SQLite. Converting or ignoring updates the remote record; "delete after converting" removes the remote file.</div>
+        </details>
+        <details class="faq" id="faq-offline">
+          <summary>Does the app work offline?</summary>
+          <div class="muted">Yes — the ledger is fully on-device and everything except GitHub sync works without a network. Changes queue up (auto-push sends them when you're back, messages wait in the outbox).</div>
+        </details>
+      </div>
+
+      <footer style="margin-top:12px">Still stuck? The code is the documentation of last resort:<br/><a href="https://github.com/rajat-g/expense-manager">github.com/rajat-g/expense-manager</a></footer>
     </section>
   </main>
 
@@ -452,6 +516,8 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <script src="vendor/web-haptics.js"></script>
+  <script src="haptics.js"></script>
   <script src="utils.js"></script>
   <script src="parsers.js"></script>
   <script src="database.js"></script>

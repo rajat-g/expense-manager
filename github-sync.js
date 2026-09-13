@@ -145,6 +145,26 @@ const GhSync = (() => {
     }
   }
 
+  // Danger Zone has its own status line: wipe results must appear where the
+  // buttons are, not only up in the Backup section (out of view).
+  function setDangerStatus(msg, isErr) {
+    const el = $("dangerStatus");
+    if (el) {
+      el.textContent = msg;
+      el.style.color = isErr ? "#b42318" : "";
+    }
+  }
+
+  // Wipe flows report to BOTH the backup status and the Danger Zone line.
+  function setWipeStatus(msg, isErr) {
+    setStatus(msg, isErr);
+    setDangerStatus(msg, isErr);
+  }
+
+  function feelTap(t) {
+    try { if (typeof Haptics !== "undefined") Haptics.tap(t); } catch {}
+  }
+
   function requireCfg(cfg) {
     if (!cfg.owner || !cfg.repo) throw new Error("Paste your git remote URL first (e.g. https://github.com/OWNER/REPO).");
     if (cfg.host && typeof GitRemote !== "undefined" && !GitRemote.isGitHubHost(cfg.host)) {
@@ -487,8 +507,10 @@ const GhSync = (() => {
 
   // Push with pull-before-push: pull remote, union (local wins, tombstones
   // delete), write merged result back to local SQLite AND to GitHub shards.
-  async function pushBackup() {
+  // Haptics fire only for manual pushes — background auto-push stays silent.
+  async function pushBackup(fromUser) {
     const cfg = readForm();
+    const feel = (t) => { if (fromUser) { try { Haptics.tap(t); } catch {} } };
     try {
       requireCfg(cfg);
       passphraseOrThrow();
@@ -525,9 +547,11 @@ const GhSync = (() => {
       } catch {}
       saveCfg(cfg);
       markSync("push");
+      feel("success");
       setStatus(`Pushed ${txCount} transaction(s) across ${Object.keys(merged.months).length} month(s) to ${cfg.owner}/${cfg.repo}@${cfg.branch}:${paths.dir || "/"} ✓ (legacy single file left untouched)`);
     } catch (e) {
       try { suppressAuto = false; } catch {}
+      feel("error");
       setStatus("Push failed: " + (e?.message || e), true);
     }
   }
@@ -550,9 +574,11 @@ const GhSync = (() => {
       replaceAllTables(flat);
       saveCfg(cfg);
       markSync("pull");
+      try { Haptics.tap("success"); } catch {}
       setStatus(`Pulled ${txCount} transaction(s) across ${Object.keys(remote.months).length} month(s) ✓`);
     } catch (e) {
       try { suppressAuto = false; } catch {}
+      try { Haptics.tap("error"); } catch {}
       setStatus("Pull failed: " + (e?.message || e), true);
     }
   }
@@ -814,6 +840,109 @@ const GhSync = (() => {
     return true;
   }
 
+  // Delete one remote path if it exists. Returns true when deleted.
+  async function deleteRemotePathIfExists(cfg, repoPath) {
+    const file = await getRemotePath(cfg, repoPath);
+    if (!file) return false;
+    await deleteRemoteFile(cfg, repoPath, file.sha);
+    return true;
+  }
+
+  // Wipe the ledger backup on GitHub: month shards, dimensions, legacy file.
+  // Returns { months, dims, legacy } deletion counts.
+  async function wipeLedgerRemote(cfg) {
+    requireCfg(cfg);
+    const paths = Ledger.shardPaths(cfg.path);
+    let months = 0, dims = 0, legacy = 0;
+    const entries = await listRemoteFolder(cfg, paths.monthsDir);
+    for (const e of entries.filter((x) => x && x.name && x.name.endsWith(".enc.json"))) {
+      await deleteRemoteFile(cfg, paths.month(e.name.replace(/\.enc\.json$/, "")), e.sha);
+      months++;
+    }
+    if (await deleteRemotePathIfExists(cfg, paths.dims)) dims++;
+    if (await deleteRemotePathIfExists(cfg, paths.legacy)) legacy++;
+    return { months, dims, legacy };
+  }
+
+  // Wipe every message file on GitHub + drop the local outbox. Returns count.
+  async function wipeMessagesRemote(cfg) {
+    requireCfg(cfg);
+    const folder = msgFolder(cfg);
+    const entries = (await listRemoteFolder(cfg, folder))
+      .filter((e) => e && e.name && e.name.endsWith(".enc.json"));
+    for (const e of entries) {
+      await deleteRemoteFile(cfg, folder + "/" + e.name, e.sha);
+    }
+    writeOutbox([]);
+    try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {}
+    return entries.length;
+  }
+
+  // "Clear Database", finished properly: wipe this device (tombstoned, so the
+  // wipe propagates) AND delete the ledger backup from GitHub right away.
+  // Messages are a separate store — untouched. Auto-push stays suppressed so
+  // the wipe itself never triggers a re-upload.
+  async function clearDatabaseEverywhere() {
+    const cfg = readForm();
+    suppressAuto = true;
+    try {
+      const before = snapshotSyncIds();
+      db = new SQL.Database();
+      createSchema();
+      seedDefaults();
+      tombstoneWipedIds(before);
+      saveDB();
+      refreshAll();
+      if (cfg.owner && cfg.repo && cfg.token) {
+        setWipeStatus("Deleting ledger backup from GitHub…");
+        const w = await wipeLedgerRemote(cfg);
+        const n = w.months + w.dims + w.legacy;
+        setWipeStatus(n
+          ? `Cleared on this device + deleted ${n} backup file(s) from GitHub ✓`
+          : "Cleared on this device (no backup files found on GitHub).");
+      } else {
+        setWipeStatus("Cleared on this device (GitHub not configured — nothing remote to delete).");
+      }
+      feelTap("success");
+    } catch (e) {
+      setWipeStatus("Clear failed: " + (e?.message || e), true);
+      feelTap("error");
+    } finally {
+      suppressAuto = false;
+    }
+  }
+
+  // "Delete Everything": plain wipe of the device ledger plus the whole GitHub
+  // data (ledger backup + messages + outbox) with NO tombstones. Simple, but
+  // other devices still holding data will re-upload it on their next sync.
+  async function nukeEverything() {
+    const cfg = readForm();
+    suppressAuto = true;
+    try {
+      db = new SQL.Database();
+      createSchema();
+      seedDefaults();
+      saveDB();
+      refreshAll();
+      if (cfg.owner && cfg.repo && cfg.token) {
+        setWipeStatus("Deleting everything from GitHub…");
+        const w = await wipeLedgerRemote(cfg);
+        const m = await wipeMessagesRemote(cfg);
+        setWipeStatus(`Deleted device ledger + ${w.months + w.dims + w.legacy} backup file(s) + ${m} message file(s) ✓ No tombstones kept — other devices will re-upload their data on next sync.`);
+      } else {
+        writeOutbox([]);
+        setWipeStatus("Deleted device ledger (GitHub not configured — nothing remote to delete).");
+      }
+      feelTap("success");
+    } catch (e) {
+      setWipeStatus("Delete-everything failed: " + (e?.message || e), true);
+      feelTap("error");
+    } finally {
+      suppressAuto = false;
+    }
+  }
+  // folder, verify each id is present remotely, then DROP the local table so
+  // messages are never kept in local SQLite again.
   // One-time migration: push every locally stored SQLite message to the GitHub
   // folder, verify each id is present remotely, then DROP the local table so
   // messages are never kept in local SQLite again.
@@ -889,7 +1018,7 @@ const GhSync = (() => {
     const pw = $("ghPassphrase")?.value || "";
     if (!pw) return; // don't auto-push without passphrase in memory
     clearTimeout(autoTimer);
-    autoTimer = setTimeout(() => { pushBackup(); }, 3000);
+    autoTimer = setTimeout(() => { pushBackup(false); }, 3000);
   }
 
   function hookAutoSave() {
@@ -934,9 +1063,10 @@ const GhSync = (() => {
       else { saveCfg(readForm()); updateResolvedLine(); }
     });
     if ($("ghVerifyBtn")) $("ghVerifyBtn").onclick = verifyConnection;
-    if ($("ghPushBtn")) $("ghPushBtn").onclick = pushBackup;
+    if ($("ghPushBtn")) $("ghPushBtn").onclick = () => pushBackup(true);
     if ($("ghPullBtn")) $("ghPullBtn").onclick = () => {
       if (!confirm("Replace local data with the decrypted GitHub backup?")) return;
+      try { Haptics.tap("warning"); } catch {}
       pullBackup();
     };
     if ($("ghExportEncBtn")) $("ghExportEncBtn").onclick = exportEncFile;
@@ -971,5 +1101,5 @@ const GhSync = (() => {
     initSyncUI();
   }
 
-  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, migrateLocalMessages, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured, markSync, renderSyncTimes };
+  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, migrateLocalMessages, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured, markSync, renderSyncTimes, clearDatabaseEverywhere, nukeEverything };
 })();

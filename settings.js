@@ -7,14 +7,14 @@ function initEvents(){
   $("#txClearBtn").onclick = ()=>clearTxForm();
 
   // Filters
-  $("#applyFilters").onclick = applyFilters;
-  $("#filterToggle").onclick = toggleFilterBar;
+  $("#applyFilters").onclick = () => { try { Haptics.tap("light"); } catch {} applyFilters(); };
+  $("#filterToggle").onclick = () => { try { Haptics.tap("light"); } catch {} toggleFilterBar(); };
 
   // Dashboard hero quick actions
   const qa = $("#quickAddBtn");
   if (qa) qa.onclick = () => { try { openTxSheet(); } catch {} };
   const sn = $("#syncNowBtn");
-  if (sn) sn.onclick = () => { try { if (typeof GhSync !== "undefined") GhSync.pushBackup(); } catch {} };
+  if (sn) sn.onclick = () => { try { if (typeof GhSync !== "undefined") GhSync.pushBackup(true); } catch {} };
   const chip = $("#syncChip");
   if (chip) chip.onclick = () => {
     const btn = document.querySelector('nav button[data-page="settings"]');
@@ -25,11 +25,21 @@ function initEvents(){
   // segmented control in Settings. All stay in sync via updateThemeButtons.
   ["themeBtnM", "themeBtnD"].forEach((id) => {
     const el = document.getElementById(id);
-    if (el) el.onclick = toggleTheme;
+    if (el) el.onclick = () => { try { Haptics.tap("light"); } catch {} toggleTheme(); };
   });
   $$("[data-theme-option]").forEach((el) => {
-    el.onclick = () => applyTheme(el.getAttribute("data-theme-option"));
+    el.onclick = () => { try { Haptics.tap("light"); } catch {} applyTheme(el.getAttribute("data-theme-option")); };
   });
+
+  // FAQ: any [data-faq] button opens the FAQ page (empty value = top),
+  // focused on the referenced entry when given.
+  document.addEventListener("click", (e) => {
+    const b = e.target && e.target.closest ? e.target.closest("[data-faq]") : null;
+    if (!b || typeof showPage !== "function") return;
+    showPage("faq", b.getAttribute("data-faq") || null);
+  });
+  const back = $("#faqBackBtn");
+  if (back) back.onclick = () => showPage("settings");
   try { updateThemeButtons(); } catch {}
 
   // CSV export
@@ -80,15 +90,33 @@ function initEvents(){
     window.location.href = u.toString();
   };
 
-  // Seed + Clear (clear tombstones the wipe so the next push deletes the rows
-  // from the encrypted backup instead of pulling them back)
+  // Seed + Clear + Nuke (heavy lifting lives in GhSync so auto-push can be
+  // suppressed while wiping; otherwise the wipe itself would re-upload).
+  // Buttons disable while a wipe runs — results appear in the Danger Zone
+  // status line right below them.
+  function setDangerBusy(busy) {
+    for (const btnId of ["clearBtn", "nukeBtn"]) {
+      const el = document.getElementById(btnId);
+      if (el) el.disabled = busy;
+    }
+  }
   $("#seedBtn").onclick = ()=>{ if(confirm("Create sample data?")) { seedSample(); saveDB(); refreshAll(); }};
-  $("#clearBtn").onclick = ()=>{
-    if(!confirm("Clear ALL data on this device? The empty state replaces the encrypted backup on the next push.")) return;
-    const before = snapshotSyncIds();
-    db = new SQL.Database(); createSchema(); seedDefaults();
-    tombstoneWipedIds(before);
-    saveDB(); refreshAll();
+  $("#clearBtn").onclick = async ()=>{
+    try { Haptics.tap("warning"); } catch {}
+    if(!confirm("Clear ALL data on this device AND delete the encrypted backup from GitHub? Other devices drop the data too.")) return;
+    if (typeof GhSync === "undefined" || !GhSync.clearDatabaseEverywhere) { alert("Sync module not ready."); return; }
+    setDangerBusy(true);
+    try { await GhSync.clearDatabaseEverywhere(); }
+    finally { setDangerBusy(false); }
+  };
+  const nuke = $("#nukeBtn");
+  if (nuke) nuke.onclick = async ()=>{
+    try { Haptics.tap("warning"); } catch {}
+    if(!confirm("Delete EVERYTHING on this device AND all backup + message files on GitHub? No tombstones are kept, so other devices will re-upload their data. Cannot be undone.")) return;
+    if (typeof GhSync === "undefined" || !GhSync.nukeEverything) { alert("Sync module not ready."); return; }
+    setDangerBusy(true);
+    try { await GhSync.nukeEverything(); }
+    finally { setDangerBusy(false); }
   };
 }
 
