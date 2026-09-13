@@ -35,6 +35,7 @@ function renderAccountGroups(){
     exec("INSERT INTO account_groups(id,name,type) VALUES (?,?,?)",[uuid(),name,type]);
     $("#groupName").value="";
     saveDB(); 
+    Notify.toast("Account group added.", "success");
     renderAccountGroups(); 
     renderAccounts(); 
     renderTxSelectors(); 
@@ -43,13 +44,14 @@ function renderAccountGroups(){
 
   // Rename group handlers
   $$("#groupTable [data-renamegroup]").forEach(b=>{
-    b.onclick=()=>{
+    b.onclick=async ()=>{
       const id=b.dataset.renamegroup; 
       const old = queryOne("SELECT name FROM account_groups WHERE id=?", [id]).name;
-      const name = prompt("Rename group", old);
+      const name = (await Notify.prompt("Rename group", old) || "").trim();
       if(!name) return;
       exec("UPDATE account_groups SET name=? WHERE id=?", [name,id]); 
       saveDB(); 
+      Notify.toast("Group renamed.", "success");
       renderAccountGroups(); 
       renderAccounts(); 
       renderTxSelectors(); 
@@ -59,14 +61,15 @@ function renderAccountGroups(){
 
   // Delete group handlers
   $$("#groupTable [data-delgroup]").forEach(b=>{
-    b.onclick=()=>{
+    b.onclick=async ()=>{
       const id=b.dataset.delgroup;
       const accCount = queryOne("SELECT COUNT(*) as c FROM accounts WHERE groupId=?", [id]).c;
-      if(accCount>0){ alert("Cannot delete: group has accounts. Please move or delete accounts first."); return; }
-      if(!confirm("Delete this group?")) return;
+      if(accCount>0){ Notify.alert("Cannot delete: group has accounts. Please move or delete accounts first.", "error"); return; }
+      if(!(await Notify.confirm("Delete this group?", { danger: true }))) return;
       exec("DELETE FROM account_groups WHERE id=?", [id]); 
       recordTombstone(id, "account_groups");
       saveDB(); 
+      Notify.toast("Group deleted.", "success");
       renderAccountGroups(); 
       renderAccounts(); 
       renderTxSelectors(); 
@@ -142,6 +145,7 @@ function renderAccounts(){
       exec("INSERT INTO accounts(id,name,groupId) VALUES (?,?,?)",[uuid(),name,groupId]);
       nameInput.value="";
       saveDB(); 
+      Notify.toast("Account added.", "success");
       renderAccountGroups(); 
       renderAccounts(); 
       renderTxSelectors(); 
@@ -151,13 +155,14 @@ function renderAccounts(){
 
   // Rename account handlers
   $$("#accTable [data-rename]").forEach(b=>{
-    b.onclick=()=>{
+    b.onclick=async ()=>{
       const id=b.dataset.rename; 
       const old = queryOne("SELECT name FROM accounts WHERE id=?", [id]).name;
-      const name = prompt("Rename account", old);
+      const name = (await Notify.prompt("Rename account", old) || "").trim();
       if(!name) return;
       exec("UPDATE accounts SET name=? WHERE id=?", [name,id]); 
       saveDB(); 
+      Notify.toast("Account renamed.", "success");
       renderAccountGroups(); 
       renderAccounts(); 
       renderTxSelectors(); 
@@ -167,14 +172,15 @@ function renderAccounts(){
 
   // Delete account handlers
   $$("#accTable [data-delacc]").forEach(b=>{
-    b.onclick=()=>{
+    b.onclick=async ()=>{
       const id=b.dataset.delacc;
       const cnt = queryOne("SELECT COUNT(*) as c FROM transactions WHERE accountId=? OR toAccountId=?", [id, id]).c;
-      if(cnt>0){ alert("Cannot delete: account has transactions (including transfers)."); return; }
-      if(!confirm("Delete this account?")) return;
+      if(cnt>0){ Notify.alert("Cannot delete: account has transactions (including transfers).", "error"); return; }
+      if(!(await Notify.confirm("Delete this account?", { danger: true }))) return;
       exec("DELETE FROM accounts WHERE id=?", [id]); 
       recordTombstone(id, "accounts");
       saveDB(); 
+      Notify.toast("Account deleted.", "success");
       renderAccountGroups(); 
       renderAccounts(); 
       renderTxSelectors(); 

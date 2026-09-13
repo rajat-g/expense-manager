@@ -309,7 +309,7 @@ function addTransaction(){
   const accountId = $("#txAccount").value;
   const type = $("#txType").value;
   const note = $("#txNote").value||"";
-  const fail = (msg) => { try { Haptics.tap("error"); } catch {} alert(msg); };
+  const fail = (msg) => { try { Haptics.tap("error"); } catch {} Notify.alert(msg, "error"); };
 
   // Transfers move money between own accounts (never income/expense).
   if (type === "transfer") {
@@ -317,6 +317,7 @@ function addTransaction(){
     const amount = Number($("#txAmount").value||0);
     if (!accountId || !toAccountId || !amount) { fail("Please fill from-account, to-account, amount"); return; }
     if (accountId === toAccountId) { fail("From and To accounts must differ."); return; }
+    const wasEdit = !!editingTxId;
     if (editingTxId) {
       exec("UPDATE transactions SET date=?, accountId=?, categoryId='c_transfer', type='transfer', amount=?, note=?, toAccountId=? WHERE id=?",
         [date, accountId, amount, note, toAccountId, editingTxId]);
@@ -325,7 +326,7 @@ function addTransaction(){
       exec("INSERT INTO transactions(id,date,accountId,categoryId,type,amount,note,toAccountId) VALUES (?,?,?,?,?,?,?,?)",
         [uuid(), date, accountId, "c_transfer", type, amount, note, toAccountId]);
     }
-    return afterTxSave();
+    return afterTxSave(wasEdit ? "Transfer updated." : "Transfer added.");
   }
 
   // Splits fan one payment out across several categories.
@@ -343,7 +344,7 @@ function addTransaction(){
       stmt.run([uuid(), date, accountId, ln.cat, type, ln.amt, note, sid]);
     }
     stmt.free();
-    return afterTxSave();
+    return afterTxSave("Split added.");
   }
 
   const categoryId = $("#txCategory").value;
@@ -359,21 +360,23 @@ function addTransaction(){
     exec("UPDATE transactions SET date=?, accountId=?, categoryId=?, type=?, amount=?, note=?, toAccountId=NULL WHERE id=?",
       [date, accountId, categoryId, type, amount, note, editingTxId]);
     editingTxId = null;
+    afterTxSave("Transaction updated.");
   } else {
     const id = uuid();
     const stmt = db.prepare("INSERT INTO transactions(id,date,accountId,categoryId,type,amount,note) VALUES (?,?,?,?,?,?,?)");
     stmt.run([id,date,accountId,categoryId,type,amount,note]); stmt.free();
+    afterTxSave("Transaction added.");
   }
-  afterTxSave();
 }
 
 // Shared post-save: persist, reset the sheet, refresh every surface.
-function afterTxSave(){
+function afterTxSave(label){
   saveDB();
   setSheetMode();
   clearTxForm(false);
   closeTxSheet();
   try { Haptics.tap("success"); } catch {}
+  Notify.toast(label || "Saved.", "success");
   applyFilters();
   refreshDashboardBits();
 }
@@ -441,14 +444,15 @@ function applyFilters(){
 
   // delete handlers
   $$("#txList [data-del]").forEach(b=>{
-    b.onclick = (e)=>{
+    b.onclick = async (e)=>{
       try { Haptics.tap("warning"); } catch {}
-      if(!confirm("Delete this transaction?")) return;
+      if(!(await Notify.confirm("Delete this transaction?", { danger: true }))) return;
       e.stopPropagation();
       exec("DELETE FROM transactions WHERE id=?", [b.dataset.del]);
       recordTombstone(b.dataset.del, "transactions");
       saveDB();
       try { Haptics.tap("success"); } catch {}
+      Notify.toast("Transaction deleted.", "success");
       applyFilters();
       refreshDashboardBits();
     };
@@ -513,4 +517,5 @@ function exportTransactionsCsv(){
     r.date, r.account, r.toAccount, r.category, r.type, (r.note||"").replace(/"/g,'""'), r.amount, r.splitId
   ].map(x=>`"${x??""}"`).join(",")).join("\n");
   downloadBlob(new Blob([csv],{type:"text/csv"}), "transactions.csv");
+  Notify.toast("Exported transactions CSV.", "success");
 }

@@ -29,6 +29,7 @@ function renderCategories(){
     exec("INSERT INTO categories(id,name,type) VALUES (?,?,?)", [uuid(), name, type]);
     $("#catName").value="";
     saveDB(); 
+    Notify.toast("Category added.", "success");
     renderCategories(); 
     renderTxSelectors(); 
     refreshDashboardBits();
@@ -36,13 +37,14 @@ function renderCategories(){
 
   // Edit category handlers
   $$("#categories [data-editcat]").forEach(b=>{
-    b.onclick=()=>{
+    b.onclick=async ()=>{
       const id=b.dataset.editcat; 
       const old = queryOne("SELECT name FROM categories WHERE id=?", [id]).name;
-      const name = prompt("Rename category", old);
+      const name = (await Notify.prompt("Rename category", old) || "").trim();
       if(!name) return;
       exec("UPDATE categories SET name=? WHERE id=?", [name,id]); 
       saveDB(); 
+      Notify.toast("Category renamed.", "success");
       renderCategories(); 
       renderTxSelectors(); 
       refreshDashboardBits();
@@ -51,14 +53,15 @@ function renderCategories(){
 
   // Delete category handlers
   $$("#categories [data-delcat]").forEach(b=>{
-    b.onclick=()=>{
+    b.onclick=async ()=>{
       const id=b.dataset.delcat;
       const cnt = queryOne("SELECT COUNT(*) as c FROM transactions WHERE categoryId=?", [id]).c;
-      if(cnt>0){ alert("Cannot delete: category has transactions."); return; }
-      if(!confirm("Delete this category?")) return;
+      if(cnt>0){ Notify.alert("Cannot delete: category has transactions.", "error"); return; }
+      if(!(await Notify.confirm("Delete this category?", { danger: true }))) return;
       exec("DELETE FROM categories WHERE id=?", [id]); 
       recordTombstone(id, "categories");
       saveDB(); 
+      Notify.toast("Category deleted.", "success");
       renderCategories(); 
       renderTxSelectors(); 
       refreshDashboardBits();

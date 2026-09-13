@@ -34,6 +34,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
 <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" href="icons/splash-2048x2732.png"/>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+<link rel="stylesheet" href="vendor/sweetalert2.min.css">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -394,7 +395,6 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           <button id="lockRemoveBtn" class="btn btn-ghost">Remove</button>
           <button id="lockNowBtn" class="btn btn-ghost">Lock now</button>
         </div>
-        <div id="lockMsg" class="muted" style="font-size:13px;margin-top:8px"></div>
       </div>
 
       <div class="card">
@@ -406,7 +406,6 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         </p>
         <div class="toolbar">
           <button id="installHelpBtn" class="btn btn-ghost">Show install status</button>
-          <span id="pwaStatus" class="muted" style="font-size:13px"></span>
         </div>
       </div>
 
@@ -460,8 +459,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
             <button id="ghPushBtn" class="btn btn-primary">Push encrypted backup</button>
             <button id="ghPullBtn" class="btn btn-ghost">Pull &amp; decrypt</button>
           </div>
-          <div id="ghStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
-          <div id="ghSyncTimes" class="muted" style="font-size:13px;margin-top:6px"></div>
+          <div id="ghSyncTimes" class="muted" style="font-size:13px;margin-top:8px"></div>
         </div>
 
         <div class="subgroup">
@@ -474,7 +472,6 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
             <button id="ghPushMsgsBtn" class="btn btn-primary">Push new messages</button>
             <button id="ghPullMsgsBtn" class="btn btn-ghost">Pull messages</button>
           </div>
-          <div id="ghMsgStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
         </div>
 
         <p class="muted" style="font-size:13px;line-height:1.5;margin:14px 0 0">
@@ -547,7 +544,6 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           <button id="wipeAllBtn" class="btn btn-danger">Clear everything (all three)</button>
           <p class="muted">Plain wipes, no tombstones: other devices re-upload. Clear everything also wipes this browser and reloads.</p>
         </div>
-        <div id="dangerStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5" aria-live="polite"></div>
       </div>
 
       <footer style="margin-top:12px">On-device ledger · encrypted GitHub backup · works offline.<br/>Open source: <a href="https://github.com/rajat-g/expense-manager">github.com/rajat-g/expense-manager</a></footer>
@@ -620,6 +616,8 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
   <!-- Scripts (charts lazy-load on first dashboard render; never render-blocking) -->
   <script src="vendor/web-haptics.js"></script>
   <script src="haptics.js"></script>
+  <script src="vendor/sweetalert2.min.js"></script>
+  <script src="notify.js"></script>
   <script src="lock.js"></script>
   <script src="utils.js"></script>
   <script src="parsers.js"></script>

@@ -152,6 +152,9 @@ const GhSync = (() => {
     if (chip) {
       const t = getSyncTimes();
       const failed = configured && t.pushErr && (!t.push || t.pushErr > t.push);
+      // Chip follows the latest activity of either direction: with auto-pull
+      // only, pulls are the heartbeat — a push-only chip goes stale.
+      const last = t.push && t.pull ? (t.push > t.pull ? t.push : t.pull) : (t.push || t.pull);
       chip.classList.toggle("ok", configured && !failed && !syncingNow);
       chip.classList.toggle("err", !!failed);
       chip.classList.toggle("busy", !!syncingNow);
@@ -160,34 +163,22 @@ const GhSync = (() => {
         else if (syncingNow) { chipText.textContent = "Syncing…"; }
         else if (failed) { chipText.textContent = "Sync failed"; }
         else {
-          chipText.textContent = t.push ? `Synced ${timeAgo(t.push)}` : "Never pushed";
+          chipText.textContent = last ? `Synced ${timeAgo(last)}` : "Never synced";
         }
       }
     }
   }
 
+  // Transient feedback goes out as toasts (visible wherever you are);
+  // only the last push/pull timestamps persist inline.
   function setStatus(msg, isErr) {
-    const el = $("ghStatus");
-    if (el) {
-      el.textContent = msg;
-      el.style.color = isErr ? "#b42318" : "";
-    }
+    try { Notify.toast(msg, isErr ? "error" : "success"); } catch {}
   }
 
-  // Danger Zone has its own status line: wipe results must appear where the
-  // buttons are, not only up in the Backup section (out of view).
-  function setDangerStatus(msg, isErr) {
-    const el = $("dangerStatus");
-    if (el) {
-      el.textContent = msg;
-      el.style.color = isErr ? "#b42318" : "";
-    }
-  }
-
-  // Wipe flows report to BOTH the backup status and the Danger Zone line.
+  // Wipe flows report once, here (progress lines were removed to avoid
+  // toast spam — only outcomes notify).
   function setWipeStatus(msg, isErr) {
-    setStatus(msg, isErr);
-    setDangerStatus(msg, isErr);
+    try { Notify.toast(msg, isErr ? "error" : "success"); } catch {}
   }
 
   function feelTap(t) {
@@ -235,7 +226,6 @@ const GhSync = (() => {
     const cfg = readForm();
     try {
       if (!cfg.token) throw new Error("Paste a token first.");
-      setStatus("Verifying token with GitHub…");
       const res = await fetch("https://api.github.com/user", {
         headers: { "Authorization": `Bearer ${cfg.token}`, "Accept": "application/vnd.github+json" },
       });
@@ -329,49 +319,6 @@ const GhSync = (() => {
     return res.json();
   }
 
-  async function pushBackup() {
-    const cfg = readForm();
-    try {
-      requireCfg(cfg);
-      const pw = passphrase();
-      if (typeof db === "undefined" || !db) throw new Error("Database not ready yet.");
-      setStatus("Encrypting…");
-      const bytes = db.export();
-      const payload = await Vault.encryptDb(pw, bytes);
-      const json = JSON.stringify(payload, null, 2);
-      // GitHub Contents API expects base64 of file bytes (utf-8 safe)
-      const contentB64 = b64EncodeUtf8(json);
-      setStatus("Checking remote…");
-      const remote = await getRemote(cfg);
-      const body = {
-        message: `expenses backup ${new Date().toISOString()}`,
-        content: contentB64,
-        branch: cfg.branch,
-      };
-      if (remote && remote.sha) body.sha = remote.sha;
-      setStatus(remote ? "Updating encrypted file on GitHub…" : "Creating encrypted file on GitHub…");
-      const put = await fetch(apiBase(cfg), {
-        method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${cfg.token}`,
-          "Accept": "application/vnd.github+json",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-      if (!put.ok) {
-        const t = await put.text().catch(() => "");
-        if (put.status === 409) throw new Error("Conflict (remote changed). Pull first, then push again.");
-        if (put.status === 401 || put.status === 403) throw new Error("Auth failed. Check token scope (Contents read+write on this repo) and expiry.");
-        if (put.status === 404) throw new Error("Repo/path not found. Create the private repo first (empty is fine) and check branch name.");
-        throw new Error(`GitHub write failed (${put.status}): ${t.slice(0, 300)}`);
-      }
-      saveCfg(cfg);
-      setStatus(`Pushed encrypted backup to ${cfg.owner}/${cfg.repo}@${cfg.branch}:${cfg.path} ✓`);
-    } catch (e) {
-      setStatus("Push failed: " + (e?.message || e), true);
-    }
-  }
 
   function b64EncodeUtf8(str) {
     const bytes = new TextEncoder().encode(str);
@@ -531,13 +478,11 @@ const GhSync = (() => {
       passphraseOrThrow();
       if (typeof db === "undefined" || !db) throw new Error("Database not ready yet.");
       const paths = Ledger.shardPaths(cfg.path);
-      setStatus("Pulling remote shards before push…");
       const remote = await fetchLedger(cfg, passphraseOrThrow());
       const merged = Ledger.mergeLedgers(dumpLocalLedger(), remote);
       const flat = Ledger.flattenLedger(merged);
       replaceAllTables(flat);
       const txCount = flat.transactions.length;
-      setStatus(`Pushing ${Object.keys(merged.months).length} month shard(s) + dimensions (${txCount} transactions)…`);
       await putLedgerShard(cfg, paths.dims, shardRecord("dims", {
         account_groups: merged.dims.account_groups,
         accounts: merged.dims.accounts,
@@ -549,7 +494,6 @@ const GhSync = (() => {
         await putLedgerShard(cfg, paths.month(key), shardRecord(key, {
           transactions: merged.months[key],
         }));
-        setStatus(`Pushed ${key}…`);
       }
       // Drop remote month shards that are now empty (tombstones enforce deletes)
       try {
@@ -595,7 +539,6 @@ const GhSync = (() => {
       requireCfg(cfg);
       const pw = passphraseOrThrow();
       if (typeof db === "undefined" || !db) throw new Error("Database not ready yet.");
-      setStatus("Downloading ledger shards…");
       const remote = await fetchLedger(cfg, pw);
       const flat = Ledger.flattenLedger(remote);
       const txCount = flat.transactions.length;
@@ -678,7 +621,6 @@ const GhSync = (() => {
       lastFP = fp;
       replaceAllTables(Ledger.flattenLedger(merged));
       markSync("pull");
-      try { setStatus(`Background update from backup ✓ (${new Date().toLocaleTimeString()})`); } catch {}
       return true;
     } catch (e) {
       console.warn("auto-pull tick failed", e);
@@ -753,13 +695,11 @@ const GhSync = (() => {
         console.info("Auto-pull skipped: GitHub sync not fully configured.");
         return false;
       }
-      setStatus("Auto-pull: verifying GitHub connection…");
       const login = await verifyTokenQuiet(cfg.token);
       if (!login) {
         setStatus("Auto-pull skipped: connection failed. Check token, repo and branch.", true);
         return false;
       }
-      setStatus(`Auto-pull: downloading ledger as @${login}…`);
       const remote = await fetchLedger(cfg, cfg.passphrase);
       replaceAllTables(Ledger.flattenLedger(remote));
       try { if (typeof Inbox !== "undefined" && Inbox.refreshRemote) await Inbox.refreshRemote(); } catch {}
@@ -775,11 +715,7 @@ const GhSync = (() => {
   }
 
   function setMsgStatus(msg, isErr) {
-    const el = $("ghMsgStatus");
-    if (el) {
-      el.textContent = msg;
-      el.style.color = isErr ? "#b42318" : "";
-    }
+    try { Notify.toast(msg, isErr ? "error" : "success"); } catch {}
   }
 
   // ---- Messages: GitHub encrypted folder is their ONLY home. ----
@@ -846,7 +782,6 @@ const GhSync = (() => {
       const pw = passphrase();
       const items = readOutbox();
       if (!items.length) { setMsgStatus(`Outbox empty — nothing to upload ✓`); return 0; }
-      setMsgStatus(`Encrypting ${items.length} queued message(s)…`);
       const remaining = [];
       let ok = 0;
       for (const item of items) {
@@ -857,7 +792,6 @@ const GhSync = (() => {
           }), remote && remote.sha);
           ok++;
         } catch (e) { console.warn("outbox upload failed", item.id, e); remaining.push(item); }
-        setMsgStatus(`Uploaded ${ok}/${items.length} queued message(s)…`);
       }
       writeOutbox(remaining);
       try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {}
@@ -999,7 +933,6 @@ const GhSync = (() => {
     try { clearTimeout(autoTimer); } catch {}
     try {
       requireCfg(cfg);
-      setWipeStatus("Deleting from GitHub…");
       setWipeStatus(await work(cfg));
       feelTap("success");
       return true;
@@ -1041,7 +974,6 @@ const GhSync = (() => {
     try {
       let gh = "GitHub not configured — remote skipped.";
       if (cfg.owner && cfg.repo && cfg.token) {
-        setWipeStatus("Deleting GitHub data…");
         const w = await wipeGithubData(cfg);
         gh = `GitHub: deleted ${w.backup} backup file(s) + ${w.messages} message file(s).`;
       }
@@ -1071,7 +1003,6 @@ const GhSync = (() => {
     try { clearTimeout(autoTimer); } catch {}
     try {
       if (cfg.owner && cfg.repo && cfg.token) {
-        setWipeStatus("Deleting GitHub data…");
         const w = await wipeGithubData(cfg);
         setWipeStatus(`GitHub: deleted ${w.backup} backup file(s) + ${w.messages} message file(s). Clearing this browser…`);
       }
@@ -1170,12 +1101,10 @@ const GhSync = (() => {
   }
 
   function pwaStatus() {
-    const el = document.getElementById("pwaStatus");
     const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
     const sw = ("serviceWorker" in navigator) ? "SW supported" : "SW not supported";
-    const msg = standalone ? `Running as installed app ✓ (${sw})` : `Running in browser (${sw}). On iPhone: Share → Add to Home Screen.`;
-    if (el) el.textContent = msg;
-    else alert(msg);
+    const msg = standalone ? `Running as installed app (${sw})` : `Running in browser (${sw}). On iPhone: Share → Add to Home Screen.`;
+    try { Notify.toast(msg, "info"); } catch {}
   }
 
   function initSyncUI() {
@@ -1194,8 +1123,8 @@ const GhSync = (() => {
     });
     if ($("ghVerifyBtn")) $("ghVerifyBtn").onclick = verifyConnection;
     if ($("ghPushBtn")) $("ghPushBtn").onclick = () => pushBackup(true);
-    if ($("ghPullBtn")) $("ghPullBtn").onclick = () => {
-      if (!confirm("Replace local data with the decrypted GitHub backup?")) return;
+    if ($("ghPullBtn")) $("ghPullBtn").onclick = async () => {
+      if (!(await Notify.confirm("Replace local data with the decrypted GitHub backup?", { danger: true, okText: "Replace" }))) return;
       try { Haptics.tap("warning"); } catch {}
       pullBackup();
     };

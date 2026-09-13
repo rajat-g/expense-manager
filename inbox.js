@@ -253,7 +253,7 @@ const Inbox = (() => {
             type: rec.type, merchant: rec.merchant, body: rec.body,
           });
         }
-      } catch (e) { alert("Remote export failed (" + (e?.message || e) + ") — exporting queued items only."); }
+      } catch (e) { Notify.toast("Remote export failed (" + (e?.message || e) + ") — exporting queued items only.", "error"); }
     }
     rows.sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
     const head = "id,created_at,received_at,sender,source,status,rule,confidence,parsed_amount,parsed_type,merchant,body";
@@ -428,19 +428,22 @@ const Inbox = (() => {
               });
               refreshAll();
               renderInbox();
+              Notify.toast("Saved to Transactions.", "success");
             } else if (act === "ignore") {
-              if (!confirm("Mark this message as ignored? (Remote archive keeps it for your dataset.)")) { btn.disabled = false; return; }
+              if (!(await Notify.confirm("Mark this message as ignored? (Remote archive keeps it for your dataset.)", { okText: "Ignore" }))) { btn.disabled = false; return; }
               await setRemoteStatus(id, loc, "ignored");
               renderInbox();
+              Notify.toast("Message ignored.", "success");
             } else if (act === "reopen") {
               await setRemoteStatus(id, loc, "pending");
               renderInbox();
             } else if (act === "del") {
-              if (!confirm("Delete this message permanently?")) { btn.disabled = false; return; }
+              if (!(await Notify.confirm("Delete this message permanently?", { danger: true }))) { btn.disabled = false; return; }
               await deleteMessage(id, loc);
               renderInbox();
+              Notify.toast("Message deleted.", "success");
             }
-          } catch (e) { alert(e.message || e); btn.disabled = false; }
+          } catch (e) { Notify.toast(e.message || e, "error"); btn.disabled = false; }
         };
       });
     });
@@ -456,7 +459,8 @@ const Inbox = (() => {
           saveRawMessage({ body, sender, source: "manual" });
           document.getElementById("inboxBody").value = "";
           renderInbox();
-        } catch (e) { alert(e.message || e); }
+          Notify.toast("Message saved.", "success");
+        } catch (e) { Notify.toast(e.message || e, "error"); }
       };
     }
     const filterEl = document.getElementById("inboxFilter");
@@ -470,8 +474,8 @@ const Inbox = (() => {
       copyBtn.onclick = async () => {
         const sample = document.getElementById("inboxBody").value?.trim() || "Rs.250 debited via UPI to SWIGGY. Ref 123456.";
         const url = buildShortcutUrl(sample, document.getElementById("inboxSender").value?.trim() || "HDFCBK");
-        try { await navigator.clipboard.writeText(url); alert("Sample Shortcut URL copied. Open it to test ingest."); }
-        catch { prompt("Copy this URL:", url); }
+        try { await navigator.clipboard.writeText(url); Notify.toast("Shortcut URL copied. Open it to test ingest.", "success"); }
+        catch { Notify.prompt("Copy this URL:", url); }
       };
     }
     // settings prefs
@@ -489,10 +493,11 @@ const Inbox = (() => {
     }
     const clearBtn = document.getElementById("inboxClearConvertedBtn");
     if (clearBtn) {
-      clearBtn.onclick = () => {
-        if (!confirm("Drop converted + ignored items from the local outbox? (GitHub archive is untouched.)")) return;
+      clearBtn.onclick = async () => {
+        if (!(await Notify.confirm("Drop converted + ignored items from the local outbox? (GitHub archive is untouched.)"))) return;
         setOutbox(getOutbox().filter((o) => (o.status || "pending") === "pending"));
         renderInbox();
+        Notify.toast("Outbox cleared.", "success");
       };
     }
   }

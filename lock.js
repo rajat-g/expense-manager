@@ -147,7 +147,7 @@ const Lock = (() => {
 
   // Settings card: set / change / remove PIN + lock now.
   function initLockUI() {
-    const msg = (t) => { const el = document.getElementById("lockMsg"); if (el) el.textContent = t || ""; };
+    const msg = (t, err) => { try { Notify.toast(t, err ? "error" : "success"); } catch {} };
     const curWrap = document.getElementById("lockCurWrap");
     if (curWrap) curWrap.style.display = isSet() ? "" : "none";
     const save = document.getElementById("lockSaveBtn");
@@ -156,26 +156,26 @@ const Lock = (() => {
       const nw = (document.getElementById("lockNew") || {}).value || "";
       const cf = (document.getElementById("lockConfirm") || {}).value || "";
       try {
-        if (isSet() && !(await verify(cur))) { msg("Current PIN is wrong."); return; }
-        if (nw !== cf) { msg("New PIN entries do not match."); return; }
+        if (isSet() && !(await verify(cur))) { msg("Current PIN is wrong.", true); return; }
+        if (nw !== cf) { msg("New PIN entries do not match.", true); return; }
         await setPin(nw);
         for (const id of ["lockCur", "lockNew", "lockConfirm"]) {
           const el = document.getElementById(id);
           if (el) el.value = "";
         }
         if (curWrap) curWrap.style.display = "";
-        msg("PIN saved. It will be asked on launch and after 10 minutes away.");
-      } catch (e) { msg(e?.message || "Could not save PIN."); }
+        msg("PIN saved. Asked after 10 minutes away.");
+      } catch (e) { msg(e?.message || "Could not save PIN.", true); }
     };
     const rm = document.getElementById("lockRemoveBtn");
     if (rm) rm.onclick = async () => {
       const cur = (document.getElementById("lockCur") || {}).value || "";
       try {
-        if (isSet() && !(await verify(cur))) { msg("Current PIN is wrong."); return; }
+        if (isSet() && !(await verify(cur))) { msg("Current PIN is wrong.", true); return; }
         removePin();
         if (curWrap) curWrap.style.display = "none";
         msg("App lock removed.");
-      } catch (e) { msg(e?.message || "Could not remove PIN."); }
+      } catch (e) { msg(e?.message || "Could not remove PIN.", true); }
     };
     const now = document.getElementById("lockNowBtn");
     if (now) now.onclick = () => { if (isSet()) show(); else msg("Set a PIN first."); };

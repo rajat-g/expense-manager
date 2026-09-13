@@ -68,12 +68,12 @@ describe('transactions category/type behavior', function(){
     document.querySelector('#txAmount').value = '100';
 
     let alerted = false;
-    const oldAlert = window.alert;
-    window.alert = function(){ alerted = true; };
+    const oldNotify = window.Notify;
+    window.Notify = { alert: async function(){ alerted = true; } };
     try {
       addTransaction();
     } finally {
-      window.alert = oldAlert;
+      window.Notify = oldNotify;
     }
     expect(alerted).to.equal(true);
     const count = queryOne('SELECT COUNT(*) as c FROM transactions').c;

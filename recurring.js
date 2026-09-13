@@ -129,6 +129,7 @@ function renderRecurring() {
       const cur = queryOne("SELECT paused FROM recurring WHERE id=?", [b.dataset.recpause]).paused;
       exec("UPDATE recurring SET paused=? WHERE id=?", [cur ? 0 : 1, b.dataset.recpause]);
       saveDB(); renderRecurring();
+      Notify.toast(cur ? "Template resumed." : "Template paused.", "success");
     };
   });
   box.querySelectorAll("[data-recedit]").forEach((b) => {
@@ -151,11 +152,12 @@ function renderRecurring() {
     };
   });
   box.querySelectorAll("[data-recdel]").forEach((b) => {
-    b.onclick = () => {
-      if (!confirm("Delete this template? Already-created transactions stay.")) return;
+    b.onclick = async () => {
+      if (!(await Notify.confirm("Delete this template? Already-created transactions stay.", { danger: true }))) return;
       exec("DELETE FROM recurring WHERE id=?", [b.dataset.recdel]);
       recordTombstone(b.dataset.recdel, "recurring");
       saveDB(); renderRecurring();
+      Notify.toast("Template deleted.", "success");
     };
   });
 }
@@ -169,11 +171,12 @@ function saveRecurring() {
   const day = Number($("#recDay").value || 1);
   const startMonth = $("#recStart").value || "";
   const endMonth = $("#recEnd").value || "";
-  if (!accountId || !categoryId || !amount) { alert("Please fill account, category, amount"); return; }
-  if (!/^\d{4}-\d{2}$/.test(startMonth)) { alert("Pick a start month"); return; }
-  if (endMonth && (!/^\d{4}-\d{2}$/.test(endMonth) || endMonth < startMonth)) { alert("End month must be after start month"); return; }
+  if (!accountId || !categoryId || !amount) { Notify.alert("Please fill account, category, amount", "error"); return; }
+  if (!/^\d{4}-\d{2}$/.test(startMonth)) { Notify.alert("Pick a start month", "error"); return; }
+  if (endMonth && (!/^\d{4}-\d{2}$/.test(endMonth) || endMonth < startMonth)) { Notify.alert("End month must be after start month", "error"); return; }
   const cat = queryOne("SELECT type FROM categories WHERE id=?", [categoryId]);
-  if (cat && !(cat.type === type || cat.type === "both")) { alert("Category does not match the chosen type."); return; }
+  if (cat && !(cat.type === type || cat.type === "both")) { Notify.alert("Category does not match the chosen type.", "error"); return; }
+  const wasEdit = !!editingRecId;
   if (editingRecId) {
     exec("UPDATE recurring SET accountId=?, categoryId=?, type=?, amount=?, note=?, day=?, startMonth=?, endMonth=? WHERE id=?",
       [accountId, categoryId, type, amount, note, day, startMonth, endMonth || null, editingRecId]);
@@ -186,6 +189,7 @@ function saveRecurring() {
   materializeDue();
   clearRecForm();
   renderRecurring();
+  Notify.toast(wasEdit ? "Template updated." : "Template saved.", "success");
   applyFilters();
   refreshDashboardBits();
 }
