@@ -410,6 +410,7 @@ const GhSync = (() => {
   // keeps this injection-safe.
   function replaceAllTables(flat) {
     suppressAuto = true;
+    try { clearTimeout(autoTimer); } catch {}
     try {
       for (const t of Object.keys(LEDGER_TABLES)) {
         exec(`DELETE FROM ${t}`);
@@ -856,6 +857,7 @@ const GhSync = (() => {
   async function deleteGithubOnly(work) {
     const cfg = readForm();
     suppressAuto = true;
+    try { clearTimeout(autoTimer); } catch {}
     try {
       requireCfg(cfg);
       setWipeStatus("Deleting from GitHub…");
@@ -896,6 +898,7 @@ const GhSync = (() => {
   async function clearGithubAndDevice() {
     const cfg = readForm();
     suppressAuto = true;
+    try { clearTimeout(autoTimer); } catch {}
     try {
       let gh = "GitHub not configured — remote skipped.";
       if (cfg.owner && cfg.repo && cfg.token) {
@@ -908,7 +911,9 @@ const GhSync = (() => {
       seedDefaults();
       saveDB();
       refreshAll();
-      setWipeStatus(`Cleared device database. ${gh} No tombstones kept — other devices will re-upload on next sync.`);
+      const accs = query("SELECT COUNT(*) c FROM accounts")[0].c;
+      const cats = query("SELECT COUNT(*) c FROM categories")[0].c;
+      setWipeStatus(`Cleared device database — defaults restored (${accs} accounts, ${cats} categories). ${gh} No tombstones kept — other devices will re-upload on next sync.`);
       feelTap("success");
     } catch (e) {
       setWipeStatus("Clear failed: " + (e?.message || e), true);
@@ -924,6 +929,7 @@ const GhSync = (() => {
   async function clearEverything() {
     const cfg = readForm();
     suppressAuto = true;
+    try { clearTimeout(autoTimer); } catch {}
     try {
       if (cfg.owner && cfg.repo && cfg.token) {
         setWipeStatus("Deleting GitHub data…");
@@ -942,16 +948,20 @@ const GhSync = (() => {
   }
 
   // Device-section delete: fresh local database only (GitHub untouched —
-  // the backup syncs back on next push/pull).
+  // the backup syncs back on next push/pull). Cancels any push already
+  // queued by auto-push: otherwise it fires mid-wipe and resurrects data.
   async function deleteDeviceDatabase() {
     suppressAuto = true;
+    try { clearTimeout(autoTimer); } catch {}
     try {
       db = new SQL.Database();
       createSchema();
       seedDefaults();
       saveDB();
       refreshAll();
-      setWipeStatus("Cleared device database. GitHub backup untouched — it will sync back on next push/pull.");
+      const accs = query("SELECT COUNT(*) c FROM accounts")[0].c;
+      const cats = query("SELECT COUNT(*) c FROM categories")[0].c;
+      setWipeStatus(`Cleared device database — defaults restored (${accs} accounts, ${cats} categories). GitHub backup untouched — it will sync back on next push/pull.`);
       feelTap("success");
       return true;
     } catch (e) {
@@ -967,6 +977,7 @@ const GhSync = (() => {
   // Includes the saved database bytes, so the device resets too.
   async function deleteBrowserStorage() {
     suppressAuto = true;
+    try { clearTimeout(autoTimer); } catch {}
     try {
       clearBrowserKeys();
       try { location.reload(); } catch {}
