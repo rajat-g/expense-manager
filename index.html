@@ -171,6 +171,15 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         </div>
       </div>
 
+      <div id="txBulkBar" class="card bulk-bar" hidden>
+        <strong><span id="txSelectedCount">0</span> selected</strong>
+        <select id="txBulkCategory" aria-label="Change selected category"><option value="">Change category…</option></select>
+        <select id="txBulkAccount" aria-label="Change selected account"><option value="">Change account…</option></select>
+        <button id="txBulkExport" class="btn btn-ghost" type="button">Export selected</button>
+        <button id="txBulkDelete" class="btn btn-danger" type="button">Delete selected</button>
+        <button id="txBulkClear" class="btn btn-ghost" type="button" aria-label="Clear selection">Clear</button>
+      </div>
+
       <div id="txList"></div>
     </section>
 
@@ -223,7 +232,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         <div class="toolbar" style="margin-bottom:4px">
           <button id="recBackBtn" class="btn btn-ghost" type="button">← Transactions</button>
         </div>
-        <h1>Recurring</h1><p class="sub">Monthly templates create themselves. Already-created entries stay put if you pause or delete a template.</p>
+        <h1>Recurring</h1><p class="sub">Schedules create transactions automatically. Preview upcoming entries or skip one occurrence without pausing.</p>
       </header>
       <div class="card">
         <h2 id="recFormTitle">New template</h2>
@@ -236,11 +245,13 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
               <option value="income">Income</option>
             </select>
           </div>
+          <div><label>Schedule</label><select id="recCadence"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div>
           <div><label>Day of month</label><select id="recDay"></select></div>
           <div><label>Account</label><select id="recAccount"></select></div>
           <div><label>Category</label><select id="recCategory"></select></div>
           <div><label>Note</label><input type="text" id="recNote" placeholder="e.g., Rent"></div>
           <div><label>Starts (month)</label><input type="month" id="recStart"></div>
+          <div id="recStartDateWrap" style="display:none"><label>Starts (date)</label><input type="date" id="recStartDate"></div>
           <div><label>Ends (month, optional)</label><input type="month" id="recEnd"></div>
         </div>
         <div class="toolbar" style="margin-top:8px">
@@ -249,6 +260,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         </div>
       </div>
       <div style="height:12px"></div>
+      <div id="recPreview" class="card" hidden></div>
       <div id="recList"></div>
     </section>
 

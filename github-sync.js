@@ -361,7 +361,7 @@ const GhSync = (() => {
     accounts: ["id", "name", "groupId"],
     categories: ["id", "name", "type"],
     transactions: ["id", "date", "accountId", "categoryId", "type", "amount", "note", "toAccountId", "splitId"],
-    recurring: ["id", "accountId", "categoryId", "type", "amount", "note", "day", "startMonth", "endMonth", "paused"],
+    recurring: ["id", "accountId", "categoryId", "type", "amount", "note", "day", "startMonth", "endMonth", "paused", "cadence", "startDate"],
     tombstones: ["id", "tbl", "deleted_at"],
   };
 

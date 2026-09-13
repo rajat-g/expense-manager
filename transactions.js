@@ -6,6 +6,7 @@ let sheetWired = false;
 let editingTxId = null; // set while the bottom sheet edits an existing row
 let splitLines = null; // null = single-row mode, else [{ cat, amt }] split lines
 let filterTouched = false; // once the user toggles the bar, stop auto collapsing
+const selectedTxIds = new Set();
 const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const pad2 = n => String(n).padStart(2, "0");
@@ -28,14 +29,16 @@ function txDayHTML(dateStr, dInc, dExp) {
     + `<span class="day-exp">${inr2(dExp)}</span></div>`;
 }
 
-function txRowHTML(r, withDelete) {
+function txRowHTML(r, withDelete, allowSelect) {
   const letter = ((r.cat || r.acc || "?").trim()[0] || "?").toUpperCase();
   const isXfer = r.type === "transfer";
   const sub = isXfer
     ? `${r.acc || ""} → ${r.toAcc || ""}`
     : [r.cat || "", r.acc || ""].filter(Boolean).join(" · ");
   const splitPill = r.splitId ? ` <span class="pill split">split</span>` : "";
-  return `<div class="txrow" data-edit="${esc(r.id)}" tabindex="0" role="button" aria-label="Edit transaction ${esc(r.note || r.cat || "")} ${inr2(r.amount || 0)}">`
+  const selected = allowSelect && selectedTxIds.has(r.id);
+  return `<div class="txrow${selected ? " selected" : ""}" data-edit="${esc(r.id)}" tabindex="0" role="button" aria-label="Edit transaction ${esc(r.note || r.cat || "")} ${inr2(r.amount || 0)}">`
+    + (allowSelect ? `<input class="txselect" type="checkbox" data-select-tx="${esc(r.id)}" ${selected ? "checked" : ""} aria-label="Select transaction">` : "")
     + `<span class="tile" title="${esc(isXfer ? "Transfer" : (r.cat || ""))}">${isXfer ? "⇄" : esc(letter)}</span>`
     + `<span class="t-main"><span class="t-note">${esc(r.note || (isXfer ? "Transfer" : (r.cat || "-")))}</span>`
     + `<span class="t-sub">${esc(sub)}${splitPill}</span></span>`
@@ -45,7 +48,7 @@ function txRowHTML(r, withDelete) {
 }
 
 // Group already-sorted rows (date DESC) into day-grouped ledger HTML
-function txGroupsHTML(rows, withDelete) {
+function txGroupsHTML(rows, withDelete, allowSelect = false) {
   let html = "";
   let cur = null, dInc = 0, dExp = 0, buf = [];
   const flushDay = () => {
@@ -55,7 +58,7 @@ function txGroupsHTML(rows, withDelete) {
   for (const r of rows) {
     if (r.date !== cur) { flushDay(); cur = r.date; dInc = 0; dExp = 0; buf = []; }
     if (r.type === "income") dInc += r.amount || 0; else dExp += r.amount || 0;
-    buf.push(txRowHTML(r, withDelete));
+    buf.push(txRowHTML(r, withDelete, allowSelect));
   }
   flushDay();
   return html;
@@ -211,7 +214,7 @@ function wireTxEdit(scope) {
     if (row.dataset.editWired) return;
     row.dataset.editWired = "1";
     row.addEventListener("click", (e) => {
-      if (e.target.closest("[data-del]")) return;
+      if (e.target.closest("[data-del], .txselect")) return;
       openTxEdit(row.dataset.edit);
     });
     row.addEventListener("keydown", (e) => {
@@ -246,6 +249,71 @@ function wireTxSheet() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeTxSheet(); });
 }
 
+function selectedTransactionRows() {
+  if (!selectedTxIds.size) return [];
+  return query("SELECT t.*, a.name as account, a2.name as toAccount, c.name as category FROM transactions t LEFT JOIN accounts a ON a.id=t.accountId LEFT JOIN accounts a2 ON a2.id=t.toAccountId LEFT JOIN categories c ON c.id=t.categoryId WHERE t.id IN (" + [...selectedTxIds].map(() => "?").join(",") + ")", [...selectedTxIds]);
+}
+
+function exportTransactionRowsCsv(rows, filename) {
+  const csv = "Date,Account,ToAccount,Category,Type,Note,Amount,SplitId\n" + rows.map(r=>[
+    r.date, r.account, r.toAccount, r.category, r.type, (r.note||"").replace(/"/g,'""'), r.amount, r.splitId
+  ].map(x=>`"${x??""}"`).join(",")).join("\n");
+  downloadBlob(new Blob([csv],{type:"text/csv"}), filename);
+}
+
+function updateBulkBar() {
+  const bar = $("#txBulkBar");
+  if (!bar) return;
+  bar.hidden = !selectedTxIds.size;
+  $("#txSelectedCount").textContent = String(selectedTxIds.size);
+}
+
+function wireBulkTransactions() {
+  const list = $("#txList");
+  if (!list || list.dataset.bulkWired) return;
+  list.dataset.bulkWired = "1";
+  list.addEventListener("change", (e) => {
+    const input = e.target.closest("[data-select-tx]");
+    if (!input) return;
+    if (input.checked) selectedTxIds.add(input.dataset.selectTx); else selectedTxIds.delete(input.dataset.selectTx);
+    input.closest(".txrow")?.classList.toggle("selected", input.checked);
+    updateBulkBar();
+  });
+  list.addEventListener("click", (e) => { if (e.target.closest(".txselect")) e.stopPropagation(); });
+  $("#txBulkClear").onclick = () => { selectedTxIds.clear(); applyFilters(); };
+  $("#txBulkExport").onclick = () => {
+    const rows = selectedTransactionRows();
+    if (rows.length) { exportTransactionRowsCsv(rows, "selected-transactions.csv"); Notify.toast("Exported selected transactions.", "success"); }
+  };
+  $("#txBulkDelete").onclick = async () => {
+    if (!(await Notify.confirm(`Delete ${selectedTxIds.size} selected transaction(s)?`, { danger: true }))) return;
+    for (const r of selectedTransactionRows()) { exec("DELETE FROM transactions WHERE id=?", [r.id]); recordTombstone(r.id, "transactions"); }
+    selectedTxIds.clear(); saveDB(); applyFilters(); refreshAccountViews(); refreshDashboardBits();
+    Notify.toast("Selected transactions deleted.", "success");
+  };
+  $("#txBulkCategory").onchange = () => {
+    const categoryId = $("#txBulkCategory").value;
+    if (!categoryId) return;
+    const cat = queryOne("SELECT type FROM categories WHERE id=?", [categoryId]);
+    const rows = selectedTransactionRows();
+    if (rows.some(r => r.type === "transfer" || !(cat.type === r.type || cat.type === "both"))) {
+      Notify.alert("Selected category does not match every selected transaction.", "error");
+      $("#txBulkCategory").value = "";
+      return;
+    }
+    for (const r of rows) exec("UPDATE transactions SET categoryId=? WHERE id=?", [categoryId, r.id]);
+    $("#txBulkCategory").value = ""; saveDB(); applyFilters(); refreshDashboardBits();
+    Notify.toast("Categories updated.", "success");
+  };
+  $("#txBulkAccount").onchange = () => {
+    const accountId = $("#txBulkAccount").value;
+    if (!accountId) return;
+    for (const r of selectedTransactionRows()) exec("UPDATE transactions SET accountId=? WHERE id=?", [accountId, r.id]);
+    $("#txBulkAccount").value = ""; saveDB(); applyFilters(); refreshAccountViews(); refreshDashboardBits();
+    Notify.toast("Accounts updated.", "success");
+  };
+}
+
 // Render transaction selectors (accounts and categories)
 function renderTxSelectors(){
   const accs = query(`
@@ -270,6 +338,8 @@ function renderTxSelectors(){
   // filters
   fillSelect($("#fAccount"), [{id:"",name:"All"}, ...formattedAccs], "id","name");
   fillSelect($("#fCategory"), [{id:"",name:"All"}, ...cats], "id","name");
+  fillSelect($("#txBulkCategory"), [{id:"",name:"Change category…"}, ...cats], "id","name");
+  fillSelect($("#txBulkAccount"), [{id:"",name:"Change account…"}, ...formattedAccs], "id","name");
 
   // react to type change on add form
   const typeSel = $("#txType");
@@ -300,6 +370,7 @@ function renderTxSelectors(){
   $("#txNextM").onclick = ()=>shiftTxMonth(1);
   $("#txMonthTitle").onclick = ()=>{ const d = new Date(); txMonth = new Date(d.getFullYear(), d.getMonth(), 1); syncTxMonthInputs(); applyFilters(); };
   wireTxSheet();
+  wireBulkTransactions();
 }
 
 // Save the sheet form: INSERT in add mode, UPDATE in edit mode.
@@ -443,10 +514,13 @@ function applyFilters(){
   const list = $("#txList");
   if (!rows.length) {
     list.innerHTML = `<div class="tx-empty">No entries in this view.<br/>Tap + to add one.</div>`;
+    updateBulkBar();
     updateFilterBar(from, to, acc, cat, type, q);
     return;
   }
-  list.innerHTML = txGroupsHTML(rows, true);
+  list.innerHTML = txGroupsHTML(rows, true, true);
+  wireBulkTransactions();
+  updateBulkBar();
   updateFilterBar(from, to, acc, cat, type, q);
 
   // delete handlers
@@ -521,9 +595,6 @@ function exportTransactionsCsv(){
   }
   sql += " ORDER BY t.date DESC, t.rowid DESC";
   const rows = query(sql, params);
-  const csv = "Date,Account,ToAccount,Category,Type,Note,Amount,SplitId\n" + rows.map(r=>[
-    r.date, r.account, r.toAccount, r.category, r.type, (r.note||"").replace(/"/g,'""'), r.amount, r.splitId
-  ].map(x=>`"${x??""}"`).join(",")).join("\n");
-  downloadBlob(new Blob([csv],{type:"text/csv"}), "transactions.csv");
+  exportTransactionRowsCsv(rows, "transactions.csv");
   Notify.toast("Exported transactions CSV.", "success");
 }

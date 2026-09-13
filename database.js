@@ -94,7 +94,9 @@ function createSchema(){
       day INTEGER,
       startMonth TEXT,
       endMonth TEXT,
-      paused INTEGER
+      paused INTEGER,
+      cadence TEXT DEFAULT 'monthly',
+      startDate TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
     CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(accountId);
