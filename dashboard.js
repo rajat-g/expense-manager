@@ -1,6 +1,46 @@
 // Dashboard functionality and chart rendering
+//
+// Performance: totals + recents are cheap synchronous queries and paint
+// immediately. The two chart cards load async (requestIdleCallback) behind
+// skeleton placeholders, and the heavy ApexCharts bundle itself lazy-loads
+// on first use instead of blocking the initial page render. A render token
+// drops stale async work (rapid theme toggles, saves while navigating).
 
 let monthChart = null;
+let dashToken = 0;
+let apexPromise = null;
+
+// Resolve once the ApexCharts global is available (CDN, cached by the
+// browser HTTP cache afterwards). Rejects offline on first load.
+function ensureApex() {
+  if (typeof ApexCharts !== "undefined") return Promise.resolve();
+  if (!apexPromise) {
+    apexPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/apexcharts";
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("chart library failed to load"));
+      document.head.appendChild(s);
+      setTimeout(() => reject(new Error("chart library timed out")), 15000);
+    }).catch((e) => { apexPromise = null; throw e; });
+  }
+  return apexPromise;
+}
+
+function idleRun(fn) {
+  try {
+    if (typeof requestIdleCallback === "function") { requestIdleCallback(() => fn(), { timeout: 900 }); return; }
+  } catch {}
+  setTimeout(fn, 0);
+}
+
+function setChartSkeletons() {
+  const m = document.querySelector("#monthChart");
+  if (m) m.innerHTML = `<div class="skel" style="height:100%" aria-hidden="true"></div>`;
+  const c = document.querySelector("#categoryChart");
+  if (c && !c.innerHTML) c.innerHTML = `<div class="skel" aria-hidden="true"></div>`;
+}
 
 // Render dashboard with statistics and recent transactions
 function renderDashboard(){
@@ -26,12 +66,15 @@ function renderDashboard(){
     : `<div class="tx-empty">No transactions yet.<br/>Tap + on the Transactions tab to add one.</div>`;
   try { if (typeof wireTxEdit === "function") wireTxEdit($("#recentTx")); } catch {}
 
-  drawMonthChart();
-  drawCategoryChart();
+  // Charts fill in async so totals + recents paint first.
+  const token = ++dashToken;
+  setChartSkeletons();
+  idleRun(() => { if (token === dashToken) drawCategoryChart(); });
+  idleRun(() => { if (token === dashToken) drawMonthChart(token); });
 }
 
 // Draw chart for last 6 months
-function drawMonthChart(){
+async function drawMonthChart(token){
   const months = [];
   const now = new Date();
   const ym = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -56,6 +99,16 @@ function drawMonthChart(){
   for(const r of rows){ if(map[r.m]) { map[r.m].inc = r.inc||0; map[r.m].exp = r.exp||0; } }
 
   const dark = (typeof isDarkTheme === "function") ? isDarkTheme() : true;
+  const box = document.querySelector("#monthChart");
+  if (!box) return;
+  try {
+    await ensureApex();
+  } catch {
+    box.innerHTML = `<div class="tx-empty">Chart unavailable — connect once to load charts.</div>`;
+    return;
+  }
+  if (token !== undefined && token !== dashToken) return; // superseded
+  if (typeof ApexCharts === "undefined") return;
   const shortLandscape = window.matchMedia && window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches;
   const areaH = shortLandscape ? 220 : (window.innerWidth < 560 ? 260 : 320);
   const INCOME = dark ? '#a8d18f' : '#2f6b3c';
@@ -129,11 +182,16 @@ function drawMonthChart(){
     }]
   };
 
-  if (monthChart) {
-    monthChart.updateOptions(options);
-  } else {
-    monthChart = new ApexCharts(document.querySelector("#monthChart"), options);
-    monthChart.render();
+  try {
+    if (monthChart) {
+      monthChart.updateOptions(options);
+    } else {
+      monthChart = new ApexCharts(box, options);
+      monthChart.render();
+    }
+  } catch {
+    box.innerHTML = `<div class="tx-empty">Chart unavailable right now.</div>`;
+    monthChart = null;
   }
 }
 
@@ -149,6 +207,7 @@ function drawCategoryChart(){
   `);
 
   const box = $("#categoryChart");
+  if (!box) return;
   if (!cats.length) {
     box.innerHTML = `<div class="tx-empty">No expenses yet.</div>`;
     return;

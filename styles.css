@@ -409,6 +409,14 @@ select.compact{width:auto}
 /* charts */
 .chart-container{position:relative; height:320px; width:100%; overflow:hidden}
 .chart-container.fit{height:auto; min-height:120px}
+/* skeleton shimmer while a chart card loads async */
+.skel{
+  border-radius:12px; min-height:120px; height:100%;
+  background:linear-gradient(100deg, var(--fill) 40%, var(--card2) 52%, var(--fill) 64%);
+  background-size:200% 100%; background-position:200% 0;
+  animation:skel 1.3s ease-in-out infinite;
+}
+@keyframes skel{to{background-position:-200% 0}}
 /* ranked category bars (no chart lib: crisp at every width) */
 .catbar{display:flex; align-items:center; gap:12px; padding:9px 4px}
 .catbar .bar{flex:1; min-width:0; height:10px; border-radius:6px; background:var(--fill); overflow:hidden}

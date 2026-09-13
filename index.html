@@ -514,8 +514,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
     <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14" stroke-linecap="round"/><circle cx="15" cy="7" r="2.2" fill="var(--card)" stroke-width="1.7"/><circle cx="9" cy="12" r="2.2" fill="var(--card)" stroke-width="1.7"/><circle cx="14" cy="17" r="2.2" fill="var(--card)" stroke-width="1.7"/></svg><span>Settings</span></button>
   </nav>
 
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <!-- Scripts (charts lazy-load on first dashboard render; never render-blocking) -->
   <script src="vendor/web-haptics.js"></script>
   <script src="haptics.js"></script>
   <script src="utils.js"></script>
