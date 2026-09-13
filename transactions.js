@@ -10,7 +10,7 @@ const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","
 const pad2 = n => String(n).padStart(2, "0");
 const isoDay = (y, m, d) => `${y}-${pad2(m)}-${pad2(d)}`;
 const monthEndDay = (y, m) => new Date(y, m, 0).getDate(); // m = 1..12
-const inr2 = n => "₹ " + (Number(n || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const inr2 = n => "₹ " + (Number(n || 0)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function weekdayOf(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || "");
   if (!m) return "";
