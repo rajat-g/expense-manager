@@ -6,11 +6,14 @@
 // stays encrypted separately by your backup passphrase).
 const Lock = (() => {
   const KEY = "expense_pin_v1";
+  // Last active moment, persisted so a plain reload/refresh (same browser,
+  // seconds later) does NOT lock — only real absence does.
+  const ACTIVE_KEY = "expense_lock_active_v1";
   const ITER = 100000;
   const MAX_FAILS = 5;
   const COOLDOWN_MS = 30000;
   const AWAY_MS = 10 * 60 * 1000;
-  let fails = 0, lockedUntil = 0, lastActive = Date.now();
+  let fails = 0, lockedUntil = 0;
 
   const b64 = (buf) => {
     const b = new Uint8Array(buf);
@@ -39,12 +42,26 @@ const Lock = (() => {
   function isSet() { return !!readRec(); }
   function validPin(pin) { return /^\d{4,8}$/.test(pin || ""); }
 
+  function touchActive() {
+    try { localStorage.setItem(ACTIVE_KEY, String(Date.now())); } catch {}
+  }
+
+  // True when the user has been away long enough to require the PIN
+  // (or no activity was ever recorded: lock by default).
+  function isStale() {
+    try {
+      const t = Number(localStorage.getItem(ACTIVE_KEY) || 0);
+      return !(t > 0) || (Date.now() - t > AWAY_MS);
+    } catch { return true; }
+  }
+
   async function setPin(pin) {
     if (!validPin(pin)) throw new Error("PIN must be 4–8 digits.");
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const rec = { salt: b64(salt), hash: await hashPin(pin, salt), iter: ITER };
     try { localStorage.setItem(KEY, JSON.stringify(rec)); }
     catch { throw new Error("Could not save PIN (storage full?)."); }
+    touchActive();
   }
 
   function removePin() {
@@ -87,7 +104,7 @@ const Lock = (() => {
     if (s) s.style.display = "none";
     const pin = document.getElementById("lockPin");
     if (pin) pin.value = "";
-    lastActive = Date.now();
+    touchActive();
     paintDots();
   }
 
@@ -166,16 +183,32 @@ const Lock = (() => {
 
   function trackActivity() {
     try {
+      // Reloads and refreshes record themselves; only real absence locks.
+      window.addEventListener("pagehide", touchActive);
       document.addEventListener("visibilitychange", () => {
-        if (document.hidden) { lastActive = Date.now(); return; }
-        if (isSet() && Date.now() - lastActive > AWAY_MS) show();
+        if (document.hidden) { touchActive(); return; }
+        if (isSet() && isStale()) show();
       });
+      // Idle-but-visible also counts as away: first interaction after the
+      // gap locks instead of refreshing the timestamp.
+      let lastTouch = 0;
+      const active = () => {
+        try {
+          const s = document.getElementById("lockScreen");
+          if (s && s.style.display !== "none") return;
+        } catch {}
+        if (isSet() && isStale()) { show(); return; }
+        const now = Date.now();
+        if (now - lastTouch > 60000) { lastTouch = now; touchActive(); }
+      };
+      document.addEventListener("pointerdown", active);
+      document.addEventListener("keydown", active);
     } catch {}
   }
 
   wireLockScreen();
   trackActivity();
-  if (isSet()) show();
+  if (isSet() && isStale()) show();
 
   return { isSet, setPin, verify, removePin, show, hide, initLockUI };
 })();

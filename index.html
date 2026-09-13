@@ -383,7 +383,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
 
       <div class="card">
         <h2>App lock</h2>
-        <p class="muted" style="font-size:13px;line-height:1.5;margin:0 0 10px">PIN on launch and after 10 minutes away. Only a hash is stored — the PIN itself never is.</p>
+        <p class="muted" style="font-size:13px;line-height:1.5;margin:0 0 10px">PIN after 10 minutes away (reloads and refreshes don't lock). Only a hash is stored — the PIN itself never is.</p>
         <div id="lockCurWrap" style="display:none"><label>Current PIN</label><input type="password" id="lockCur" inputmode="numeric" autocomplete="off"></div>
         <div class="grid-2">
           <div><label>New PIN (4–8 digits)</label><input type="password" id="lockNew" inputmode="numeric" autocomplete="off"></div>
@@ -449,9 +449,9 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           <div class="toolbar" style="margin-top:8px">
             <button id="ghSaveBtn" class="btn btn-ghost">Save settings</button>
             <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAuto" style="width:auto"/> Auto-push after each change</label>
-            <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAutoPull" style="width:auto"/> Auto-pull on startup (replaces local data)</label>
+            <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAutoPull" style="width:auto"/> Auto-pull: on startup + every minute in background</label>
           </div>
-          <div class="muted" style="font-size:13px;margin-top:6px">Auto-pull runs only when the remote, token and passphrase are all set and the connection verifies; otherwise it skips quietly.</div>
+          <div class="muted" style="font-size:13px;margin-top:6px">Startup pull replaces local data with the backup. Background ticks merge it in without pushing, so your unsynced edits are never lost. Both run only when the remote, token and passphrase are all set.</div>
         </div>
 
         <div class="subgroup">
@@ -588,7 +588,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
         </details>
         <details class="faq" id="faq-auto">
           <summary>What do auto-push and auto-pull do?</summary>
-          <div class="muted"><b>Auto-push</b> uploads ~3 seconds after each local change (never during wipes). <b>Auto-pull</b> replaces local data with the backup on startup, only when the connection verifies. Both need the remote, token and passphrase saved.</div>
+          <div class="muted"><b>Auto-push</b> uploads ~3 seconds after each local change (never during wipes). <b>Auto-pull</b> replaces local data with the backup on startup, then merges it in every minute while the tab is visible — merging never pushes, so local edits are safe. Both need the remote, token and passphrase saved.</div>
         </details>
         <details class="faq" id="faq-encryption">
           <summary>Who can read my data on GitHub?</summary>

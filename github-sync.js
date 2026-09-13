@@ -11,8 +11,18 @@ const GhSync = (() => {
   const LS_KEY = "expense_gh_sync_cfg_v1";
   // Fixed backup location: monthly shards live here by default, no setting.
   const BACKUP_PATH = "expenses/expenses.enc.json";
+  // Background pull: how often a visible tab checks the backup for changes.
+  const POLL_MS = 60000;
   let autoTimer = null;
   let suppressAuto = false;
+  let syncBusy = false;
+  let pollTimer = null;
+  let lastPoll = 0;
+  let lastShas = null;
+  let lastFP = null;
+  let syncingNow = false;
+  let pushFailCount = 0;
+  let retryTimer = null;
 
   function $(id) { return document.getElementById(id); }
 
@@ -82,8 +92,8 @@ const GhSync = (() => {
   function getSyncTimes() {
     try {
       const t = JSON.parse(localStorage.getItem(TIMES_KEY) || "{}");
-      return { push: t.push || null, pull: t.pull || null };
-    } catch { return { push: null, pull: null }; }
+      return { push: t.push || null, pull: t.pull || null, pushErr: t.pushErr || null };
+    } catch { return { push: null, pull: null, pushErr: null }; }
   }
 
   function timeAgo(iso) {
@@ -105,6 +115,17 @@ const GhSync = (() => {
     try {
       const t = getSyncTimes();
       t[kind] = new Date().toISOString();
+      if (kind === "push") t.pushErr = null;
+      localStorage.setItem(TIMES_KEY, JSON.stringify(t));
+    } catch {}
+    renderSyncTimes();
+  }
+
+  // A failed push stays visible on the chip until the next success.
+  function markPushError() {
+    try {
+      const t = getSyncTimes();
+      t.pushErr = new Date().toISOString();
       localStorage.setItem(TIMES_KEY, JSON.stringify(t));
     } catch {}
     renderSyncTimes();
@@ -123,15 +144,22 @@ const GhSync = (() => {
       else {
         el.style.display = "";
         const t = getSyncTimes();
-        el.textContent = `Last push: ${timeAgo(t.push)} · Last pull: ${timeAgo(t.pull)}`;
+        const failed = t.pushErr && (!t.push || t.pushErr > t.push);
+        el.textContent = `Last push: ${timeAgo(t.push)} · Last pull: ${timeAgo(t.pull)}`
+          + (failed ? ` · Push failed ${timeAgo(t.pushErr)} — check token/connection, then Sync now` : "");
       }
     }
     if (chip) {
-      chip.classList.toggle("ok", configured);
+      const t = getSyncTimes();
+      const failed = configured && t.pushErr && (!t.push || t.pushErr > t.push);
+      chip.classList.toggle("ok", configured && !failed && !syncingNow);
+      chip.classList.toggle("err", !!failed);
+      chip.classList.toggle("busy", !!syncingNow);
       if (chipText) {
         if (!configured) { chipText.textContent = "Sync off"; }
+        else if (syncingNow) { chipText.textContent = "Syncing…"; }
+        else if (failed) { chipText.textContent = "Sync failed"; }
         else {
-          const t = getSyncTimes();
           chipText.textContent = t.push ? `Synced ${timeAgo(t.push)}` : "Never pushed";
         }
       }
@@ -494,6 +522,10 @@ const GhSync = (() => {
   async function pushBackup(fromUser) {
     const cfg = readForm();
     const feel = (t) => { if (fromUser) { try { Haptics.tap(t); } catch {} } };
+    syncBusy = true;
+    syncingNow = true;
+    try { clearTimeout(retryTimer); } catch {}
+    try { renderSyncTimes(); } catch {}
     try {
       requireCfg(cfg);
       passphraseOrThrow();
@@ -531,12 +563,26 @@ const GhSync = (() => {
       } catch {}
       saveCfg(cfg);
       markSync("push");
+      pushFailCount = 0;
       feel("success");
       setStatus(`Pushed ${txCount} transaction(s) across ${Object.keys(merged.months).length} month(s) to ${cfg.owner}/${cfg.repo}@${cfg.branch}:${paths.dir || "/"} ✓`);
     } catch (e) {
       try { suppressAuto = false; } catch {}
       feel("error");
       setStatus("Push failed: " + (e?.message || e), true);
+      markPushError();
+      // One quiet retry for background pushes; manual attempts already
+      // have the user's attention in Settings.
+      pushFailCount++;
+      if (!fromUser && pushFailCount === 1) {
+        try {
+          retryTimer = setTimeout(() => { try { if (!suppressAuto) pushBackup(false); } catch {} }, 60000);
+        } catch {}
+      }
+    } finally {
+      syncBusy = false;
+      syncingNow = false;
+      try { renderSyncTimes(); } catch {}
     }
   }
 
@@ -544,6 +590,7 @@ const GhSync = (() => {
   // Confirmed by caller.
   async function pullBackup() {
     const cfg = readForm();
+    syncBusy = true;
     try {
       requireCfg(cfg);
       const pw = passphraseOrThrow();
@@ -564,8 +611,96 @@ const GhSync = (() => {
       try { suppressAuto = false; } catch {}
       try { Haptics.tap("error"); } catch {}
       setStatus("Pull failed: " + (e?.message || e), true);
+    } finally {
+      syncBusy = false;
     }
   }
+  // ---- Background pull: keep a visible tab fresh without refresh ----
+  // Unlike startup auto-pull (which REPLACES local data), each tick MERGES
+  // the backup in and never pushes — local edits are never lost. Ticks are
+  // cheap: file SHAs are compared first, shards download only on change,
+  // and the UI refreshes only when the merged result actually differs.
+
+  // Fingerprint a ledger for change detection. Transactions collapse to
+  // id/amount/date/type; dims are small so their full content is included
+  // (catches renames that counts alone would miss).
+  function ledgerFP(ledger) {
+    try {
+      const tx = [];
+      for (const k of Object.keys((ledger || {}).months || {}).sort()) {
+        for (const t of ledger.months[k] || []) tx.push([t.id, t.amount, t.date, t.type].join("|"));
+      }
+      tx.sort();
+      const dims = {};
+      for (const t of (typeof Ledger !== "undefined" ? Ledger.DIM_TABLES : ["account_groups", "accounts", "categories", "recurring"])) {
+        dims[t] = JSON.stringify((((ledger || {}).dims || {})[t] || []).map((r) => [r.id, r.name, r.type].join("|")).sort());
+      }
+      dims.tombstones = (((ledger || {}).dims || {}).tombstones || []).length;
+      return JSON.stringify([tx, dims]);
+    } catch { return null; }
+  }
+
+  // Current remote SHAs without downloading any shard bodies.
+  async function remoteShas(cfg) {
+    const paths = Ledger.shardPaths(cfg.path);
+    const dimsFile = await getRemotePath(cfg, paths.dims).catch(() => null);
+    const entries = await listRemoteFolder(cfg, paths.monthsDir).catch(() => []);
+    const months = {};
+    for (const e of entries.filter((x) => x && x.name && x.name.endsWith(".enc.json"))) {
+      months[e.name.replace(/\.enc\.json$/, "")] = e.sha || null;
+    }
+    return { dims: (dimsFile && dimsFile.sha) || null, months };
+  }
+
+  // One background tick. Returns true when the UI actually refreshed.
+  async function pollOnce() {
+    let cfg = {};
+    try { cfg = resolveCfg(loadCfg()); } catch { return false; }
+    if (!cfg.autoPull || syncBusy || suppressAuto) return false;
+    if (!isConfiguredForSync(cfg)) return false;
+    if (typeof db === "undefined" || !db) return false;
+    try { if (document.hidden) return false; } catch {}
+    const pw = cfg.passphrase || "";
+    if (!pw) return false;
+    syncBusy = true;
+    try {
+      const shas = await remoteShas(cfg);
+      if (lastShas && JSON.stringify(shas) === JSON.stringify(lastShas)) {
+        lastPoll = Date.now();
+        return false;
+      }
+      const remote = await fetchLedger(cfg, pw);
+      const merged = Ledger.mergeLedgers(dumpLocalLedger(), remote);
+      const fp = ledgerFP(merged);
+      lastShas = shas;
+      lastPoll = Date.now();
+      if (fp !== null && fp === lastFP) return false;
+      lastFP = fp;
+      replaceAllTables(Ledger.flattenLedger(merged));
+      markSync("pull");
+      try { setStatus(`Background update from backup ✓ (${new Date().toLocaleTimeString()})`); } catch {}
+      return true;
+    } catch (e) {
+      console.warn("auto-pull tick failed", e);
+      return false;
+    } finally {
+      syncBusy = false;
+    }
+  }
+
+  function stopPollTimer() {
+    try { if (pollTimer) clearInterval(pollTimer); } catch {}
+    pollTimer = null;
+  }
+
+  function ensurePollTimer() {
+    stopPollTimer();
+    let cfg = {};
+    try { cfg = storedCfg(); } catch {}
+    if (!cfg.autoPull) return;
+    pollTimer = setInterval(() => { pollOnce(); }, POLL_MS);
+  }
+
   // Merge persisted settings with owner/repo parsed from the remote URL.
   function resolveCfg(cfg) {
     const parsed = (typeof GitRemote !== "undefined") ? GitRemote.parseGitRemote(cfg.remoteUrl || "") : null;
@@ -833,11 +968,15 @@ const GhSync = (() => {
   }
 
   // Keys this app keeps in browser localStorage (PIN + inbox prefs use
-  // literal keys owned by lock.js / inbox.js).
-  const APP_KEYS = [DB_KEY, LEGACY_DB_KEY, LS_KEY, TIMES_KEY, THEME_KEY, PAGE_KEY, "expense_pin_v1", OUTBOX_KEY, "expense_inbox_prefs_v1"];
+  // literal keys owned by lock.js / inbox.js). Resolved lazily so module
+  // load never depends on other scripts having run first.
+  function appKeys() {
+    const theme = (typeof THEME_KEY !== "undefined") ? THEME_KEY : "expense_theme_v1";
+    return [DB_KEY, LEGACY_DB_KEY, LS_KEY, TIMES_KEY, theme, PAGE_KEY, "expense_pin_v1", OUTBOX_KEY, "expense_inbox_prefs_v1"];
+  }
 
   function clearBrowserKeys() {
-    for (const k of APP_KEYS) {
+    for (const k of appKeys()) {
       try { localStorage.removeItem(k); } catch {}
     }
   }
@@ -1068,7 +1207,7 @@ const GhSync = (() => {
       } catch (e) { setMsgStatus(e?.message || e, true); }
     };
     if ($("ghAuto")) $("ghAuto").onchange = () => { saveCfg(readForm()); renderSyncTimes(); };
-    if ($("ghAutoPull")) $("ghAutoPull").onchange = () => { saveCfg(readForm()); renderSyncTimes(); };
+    if ($("ghAutoPull")) $("ghAutoPull").onchange = () => { saveCfg(readForm()); renderSyncTimes(); ensurePollTimer(); };
     ["ghRemoteUrl","ghMsgFolder","ghBranch","ghToken","ghPassphrase"].forEach((id) => {
       const el = $(id);
       if (el) el.addEventListener("change", () => { saveCfg(readForm()); renderSyncTimes(); });
@@ -1076,6 +1215,16 @@ const GhSync = (() => {
     if ($("installHelpBtn")) $("installHelpBtn").onclick = pwaStatus;
     renderSyncTimes();
     hookAutoSave();
+    ensurePollTimer();
+    // Coming back to the tab: pull immediately if the last check is old.
+    try {
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) return;
+        let cfg = {};
+        try { cfg = storedCfg(); } catch { return; }
+        if (cfg.autoPull && Date.now() - lastPoll > 30000) pollOnce();
+      });
+    } catch {}
   }
 
   // init after DOM ready; database.js init() runs separately
@@ -1085,5 +1234,5 @@ const GhSync = (() => {
     initSyncUI();
   }
 
-  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured, markSync, renderSyncTimes, wipeGithubData, clearGithubAndDevice, clearEverything, deleteDeviceDatabase, deleteBrowserStorage, deleteShardBackup, deleteMessageBackup, deleteAllGithubData };
+  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured, markSync, renderSyncTimes, wipeGithubData, clearGithubAndDevice, clearEverything, deleteDeviceDatabase, deleteBrowserStorage, deleteShardBackup, deleteMessageBackup, deleteAllGithubData, pollOnce };
 })();
