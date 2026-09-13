@@ -15,8 +15,47 @@ function weekdayOf(iso) {
   if (!m) return "";
   return WD[new Date(+m[1], +m[2] - 1, +m[3]).getDay()];
 }
-function txRangeTitle(from, to) {
-  const m = /^(\d{4})-(\d{2})-01$/.exec(from || "");
+// Shared ledger row builders (used by the Transactions list and Dashboard recents)
+function txDayHTML(dateStr, dInc, dExp) {
+  const dd = dateStr.slice(8, 10);
+  const wd = weekdayOf(dateStr);
+  return `<div class="txday"><span class="dd">${esc(dd)}</span>`
+    + `<span class="pill ${wd === "Sun" ? "exp" : ""}">${esc(wd)}</span>`
+    + `<span class="spacer"></span>`
+    + `<span class="day-inc">${inr2(dInc)}</span>`
+    + `<span class="day-exp">${inr2(dExp)}</span></div>`;
+}
+
+function txRowHTML(r, withDelete) {
+  const letter = ((r.cat || r.acc || "?").trim()[0] || "?").toUpperCase();
+  const sub = [r.cat || "", r.acc || ""].filter(Boolean).join(" · ");
+  return `<div class="txrow">`
+    + `<span class="tile" title="${esc(r.cat || "")}">${esc(letter)}</span>`
+    + `<span class="t-main"><span class="t-note">${esc(r.note || r.cat || "-")}</span>`
+    + `<span class="t-sub">${esc(sub)}</span></span>`
+    + `<span class="t-amt ${r.type === "income" ? "inc" : "exp"}">${inr2(r.amount || 0)}</span>`
+    + (withDelete ? `<button class="txdel" data-del="${r.id}" aria-label="Delete transaction">×</button>` : "")
+    + `</div>`;
+}
+
+// Group already-sorted rows (date DESC) into day-grouped ledger HTML
+function txGroupsHTML(rows, withDelete) {
+  let html = "";
+  let cur = null, dInc = 0, dExp = 0, buf = [];
+  const flushDay = () => {
+    if (!cur) return;
+    html += txDayHTML(cur, dInc, dExp) + buf.join("");
+  };
+  for (const r of rows) {
+    if (r.date !== cur) { flushDay(); cur = r.date; dInc = 0; dExp = 0; buf = []; }
+    if (r.type === "income") dInc += r.amount || 0; else dExp += r.amount || 0;
+    buf.push(txRowHTML(r, withDelete));
+  }
+  flushDay();
+  return html;
+}
+
+function txRangeTitle(from, to) {  const m = /^(\d{4})-(\d{2})-01$/.exec(from || "");
   if (m) {
     const y = +m[1], mo = +m[2];
     if (to === isoDay(y, mo, monthEndDay(y, mo))) return `${MON[mo - 1]} ${y}`;
@@ -200,34 +239,7 @@ function applyFilters(){
     updateFilterBar(from, to, acc, cat, type);
     return;
   }
-  let html = "";
-  let cur = null, dInc = 0, dExp = 0, buf = [];
-  const flushDay = () => {
-    if (!cur) return;
-    const dd = cur.slice(8, 10);
-    const wd = weekdayOf(cur);
-    html += `<div class="txday"><span class="dd">${esc(dd)}</span>`
-      + `<span class="pill ${wd === "Sun" ? "exp" : ""}">${esc(wd)}</span>`
-      + `<span class="spacer"></span>`
-      + `<span class="day-inc">${inr2(dInc)}</span>`
-      + `<span class="day-exp">${inr2(dExp)}</span></div>`;
-    html += buf.join("");
-  };
-  for (const r of rows) {
-    if (r.date !== cur) { flushDay(); cur = r.date; dInc = 0; dExp = 0; buf = []; }
-    if (r.type === "income") dInc += r.amount || 0; else dExp += r.amount || 0;
-    const letter = ((r.cat || r.acc || "?").trim()[0] || "?").toUpperCase();
-    const sub = [r.cat || "", r.acc || ""].filter(Boolean).join(" · ");
-    buf.push(`<div class="txrow">`
-      + `<span class="tile" title="${esc(r.cat || "")}">${esc(letter)}</span>`
-      + `<span class="t-main"><span class="t-note">${esc(r.note || r.cat || "-")}</span>`
-      + `<span class="t-sub">${esc(sub)}</span></span>`
-      + `<span class="t-amt ${r.type === "income" ? "inc" : "exp"}">${inr2(r.amount || 0)}</span>`
-      + `<button class="txdel" data-del="${r.id}" aria-label="Delete transaction">×</button>`
-      + `</div>`);
-  }
-  flushDay();
-  list.innerHTML = html;
+  list.innerHTML = txGroupsHTML(rows, true);
   updateFilterBar(from, to, acc, cat, type);
 
   // delete handlers

@@ -123,7 +123,7 @@ nav.sidebar{
 }
 .sidebar .side-head{display:flex; align-items:center; gap:10px; padding:2px 10px 4px}
 .sidebar .side-head .brandname{font-size:19px}
-.sidebar .small{font-size:12.5px; color:var(--secondary); padding:0 10px 12px}
+.sidebar .small{font-size:13px; color:var(--secondary); padding:0 10px 12px}
 nav.sidebar button{
   display:flex; align-items:center; gap:12px; width:100%;
   border:none; background:transparent; color:var(--text);
@@ -154,7 +154,7 @@ main{flex:1; min-width:0; width:100%}
 }
 .pagehead{padding:22px 4px 4px}
 .pagehead h1{margin:0; font-size:34px; line-height:1.12; font-weight:700; letter-spacing:-.02em}
-.pagehead .sub{margin:4px 0 12px; color:var(--secondary); font-size:14.5px}
+.pagehead .sub{margin:4px 0 12px; color:var(--secondary); font-size:15px}
 .pagehead .sub:last-child{margin-bottom:6px}
 
 .card{
@@ -172,7 +172,7 @@ main{flex:1; min-width:0; width:100%}
 .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
 .spacer{flex:1}
 .muted{color:var(--secondary)}
-.small{font-size:12.5px}
+.small{font-size:13px}
 .right{text-align:right}
 
 /* stat header */
@@ -189,7 +189,7 @@ main{flex:1; min-width:0; width:100%}
 .money-neg{color:var(--red)}
 .pill{
   display:inline-block; padding:3px 9px; border-radius:7px;
-  font-size:12.5px; font-weight:600; line-height:1.5;
+  font-size:13px; font-weight:600; line-height:1.5;
   background:var(--fill); color:var(--secondary);
   text-transform:capitalize; white-space:nowrap;
 }
@@ -208,7 +208,7 @@ th{
   border-bottom:.5px solid var(--separator);
 }
 td{
-  padding:11px 10px; font-size:15px; vertical-align:middle;
+  padding:11px 10px; font-size:16px; vertical-align:middle;
   border-bottom:.5px solid var(--separator);
   font-variant-numeric:tabular-nums;
 }
@@ -217,7 +217,7 @@ tbody tr:active{background:var(--fill)}
 
 /* ---------- ledger (dense day-grouped list) ---------- */
 .ledger-head{text-align:center; padding:16px 4px 2px}
-.ledger-head h1{margin:0; font-size:22px; font-weight:700; letter-spacing:-.01em}
+.ledger-head h1{margin:0; font-size:34px; font-weight:700; letter-spacing:-.02em; line-height:1.12}
 .pager{display:flex; align-items:center; justify-content:space-between; margin-top:2px}
 .pager-btn{border:none; background:transparent; color:var(--text); padding:10px 16px; min-width:52px; cursor:pointer; border-radius:10px}
 .pager-btn:active{background:var(--fill)}
@@ -231,7 +231,7 @@ tbody tr:active{background:var(--fill)}
 .led-exp{color:var(--red)}
 .led-net{color:var(--text)}
 .txday{display:flex; align-items:baseline; gap:10px; padding:16px 4px 4px}
-.txday .dd{font-size:30px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.txday .dd{font-size:22px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums}
 .txday .day-inc{color:#005fb8; font-weight:700; font-size:15px; font-variant-numeric:tabular-nums}
 .txday .day-exp{color:var(--red); font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; margin-left:16px}
 @media (prefers-color-scheme: dark){
@@ -283,7 +283,7 @@ body[data-page="transactions"] #txFab{display:flex}
 .sheet-x:active{filter:brightness(.92)}
 .sheet-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px}
 .sheet-grid .span2{grid-column:span 2}
-.sheet-grid label{margin-bottom:3px; font-size:12.5px}
+.sheet-grid label{margin-bottom:3px; font-size:13px}
 .sheet-actions .btn-primary{flex:1}
 body.sheet-open, body.sheet-open main{overflow:hidden}
 /* presenting sheet dismisses chrome around it, like a native modal */
@@ -347,6 +347,12 @@ select.compact{width:auto}
 
 /* charts */
 .chart-container{position:relative; height:320px; width:100%; overflow:hidden}
+.chart-container.fit{height:auto; min-height:120px}
+/* ranked category bars (no chart lib: crisp at every width) */
+.catbar{display:flex; align-items:center; gap:12px; padding:9px 4px}
+.catbar .bar{flex:1; min-width:0; height:10px; border-radius:6px; background:var(--fill); overflow:hidden}
+.catbar .bar > span{display:block; height:100%; border-radius:6px; background:var(--blue)}
+.catbar .t-amt{font-size:15px}
 .row{max-width:100%}
 .row > *{min-width:0}
 
@@ -358,7 +364,7 @@ select.compact{width:auto}
 .subgroup h2{margin:0 0 6px; font-size:15px; font-weight:600}
 .groupblock{margin-top:14px}
 .groupblock > h2{margin:0 4px 8px; font-size:17px; font-weight:600}
-#accTable h2{margin:0; font-size:16px; font-weight:600}
+#accTable h2{margin:0; font-size:17px; font-weight:600}
 
 code{
   font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -378,6 +384,7 @@ a:hover{text-decoration:underline}
   .page{padding:4px 14px calc(96px + var(--sab))}
   .pagehead{padding-top:14px}
   .pagehead h1{font-size:30px}
+  .ledger-head h1{font-size:30px}
   .grid-3{grid-template-columns:1fr 1fr}
   .stat .v{font-size:23px}
   .chart-container{height:280px}

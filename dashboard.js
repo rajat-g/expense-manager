@@ -1,7 +1,6 @@
 // Dashboard functionality and chart rendering
 
 let monthChart = null;
-let categoryChart = null;
 
 // Render dashboard with statistics and recent transactions
 function renderDashboard(){
@@ -22,16 +21,9 @@ function renderDashboard(){
     LEFT JOIN categories c ON c.id=t.categoryId
     ORDER BY t.date DESC, t.rowid DESC LIMIT 10
   `);
-  $("#recentTx").innerHTML = recent.map(r=>`
-    <tr>
-      <td>${esc(r.date||"")}</td>
-      <td>${esc(r.acc||"-")} ${r.groupName ? `(${esc(r.groupName)})` : ''}</td>
-      <td>${esc(r.cat||"-")}</td>
-      <td><span class="pill ${r.type==='income'?'inc':'exp'}">${esc(r.type)}</span></td>
-      <td>${esc(r.note||"")}</td>
-      <td class="right ${r.type==='income'?'money-pos':'money-neg'}">${r.type==='income'?'+':'-'} ${fmt(r.amount||0)}</td>
-    </tr>
-  `).join("");
+  $("#recentTx").innerHTML = recent.length
+    ? txGroupsHTML(recent, false)
+    : `<div class="tx-empty">No transactions yet.<br/>Tap + on the Transactions tab to add one.</div>`;
 
   drawMonthChart();
   drawCategoryChart();
@@ -77,11 +69,12 @@ function drawMonthChart(){
     }],
     chart: {
       type: 'area',
-      height: 350,
+      height: 320,
       toolbar: {
         show: false
       },
       fontFamily: FONT,
+      animations: { enabled: false },
     },
     colors: [INCOME, EXPENSE],
     dataLabels: {
@@ -106,7 +99,14 @@ function drawMonthChart(){
     legend: {
       position: 'top',
       horizontalAlign: 'right'
-    }
+    },
+    responsive: [{
+      breakpoint: 560,
+      options: {
+        chart: { height: 260 },
+        legend: { position: 'bottom', horizontalAlign: 'center' }
+      }
+    }]
   };
 
   if (monthChart) {
@@ -128,35 +128,17 @@ function drawCategoryChart(){
     LIMIT 8
   `);
 
-  const options = {
-    series: cats.map(c => c.total),
-    labels: cats.map(c => c.name),
-    chart: {
-      type: 'donut',
-      height: 350,
-      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif',
-    },
-    colors: ['#007aff', '#34c759', '#ff9500', '#ff3b30', '#5856d6', '#30b0c7', '#ffcc00', '#8e8e93'],
-    legend: {
-      position: 'bottom'
-    },
-    responsive: [{
-      breakpoint: 480,
-      options: {
-        chart: {
-          width: 200
-        },
-        legend: {
-          position: 'bottom'
-        }
-      }
-    }]
-  };
-
-  if (categoryChart) {
-    categoryChart.updateOptions(options);
-  } else {
-    categoryChart = new ApexCharts(document.querySelector("#categoryChart"), options);
-    categoryChart.render();
+  const box = $("#categoryChart");
+  if (!cats.length) {
+    box.innerHTML = `<div class="tx-empty">No expenses yet.</div>`;
+    return;
   }
+  const max = Math.max(...cats.map(c => c.total || 0), 0);
+  box.innerHTML = cats.map(c => `
+    <div class="catbar">
+      <span class="t-main"><span class="t-note">${esc(c.name)}</span></span>
+      <span class="bar" role="img" aria-label="${esc(c.name)} ${fmt(c.total)}"><span style="width:${max ? Math.round((c.total || 0) / max * 100) : 0}%"></span></span>
+      <span class="t-amt exp">${fmt(c.total)}</span>
+    </div>
+  `).join("");
 }

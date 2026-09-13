@@ -58,7 +58,7 @@
         </div>
         <div class="card" style="flex:1; min-width:260px">
           <h2>Top Categories</h2>
-          <div class="chart-container">
+          <div class="chart-container fit">
             <div id="categoryChart"></div>
           </div>
         </div>
@@ -66,10 +66,7 @@
 
       <div class="card" style="margin-top:12px">
         <h2>Recent Transactions</h2>
-        <table>
-          <thead><tr><th>Date</th><th>Account</th><th>Category</th><th>Type</th><th>Note</th><th class="right">Amount</th></tr></thead>
-          <tbody id="recentTx"></tbody>
-        </table>
+        <div id="recentTx"></div>
       </div>
     </section>
 
@@ -319,7 +316,7 @@
             <div><label>Fine-grained token</label><input type="password" id="ghToken" placeholder="github_pat_..." autocomplete="off"/></div>
             <div><label>Encryption passphrase</label><input type="password" id="ghPassphrase" placeholder="long memorable passphrase" autocomplete="off"/></div>
           </div>
-          <p class="muted" style="font-size:12.5px;line-height:1.5;margin:8px 0 0">
+          <p class="muted" style="font-size:13px;line-height:1.5;margin:8px 0 0">
             Contents read+write on this repo only — <a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener">create one here</a>.
             GitHub retired passwords, so the token is the sign-in. Everything here is stored
             only in this browser; the passphrase never leaves it.
@@ -329,7 +326,7 @@
             <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAuto" style="width:auto"/> Auto-push after each change</label>
             <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="ghAutoPull" style="width:auto"/> Auto-pull on startup (replaces local data)</label>
           </div>
-          <div class="muted" style="font-size:12.5px;margin-top:6px">Auto-pull runs only when the remote, token and passphrase are all set and the connection verifies; otherwise it skips quietly.</div>
+          <div class="muted" style="font-size:13px;margin-top:6px">Auto-pull runs only when the remote, token and passphrase are all set and the connection verifies; otherwise it skips quietly.</div>
         </div>
 
         <div class="subgroup">
@@ -346,7 +343,7 @@
 
         <div class="subgroup">
           <h2>Messages</h2>
-          <p class="muted" style="font-size:12.5px;line-height:1.5;margin:0 0 8px">
+          <p class="muted" style="font-size:13px;line-height:1.5;margin:0 0 8px">
             Each SMS becomes one encrypted file in the folder above, plus a temporary outbox
             until upload — never in local SQLite. Refresh only fills this device's view.
           </p>
@@ -357,7 +354,7 @@
           <div id="ghMsgStatus" class="muted" style="font-size:13px;margin-top:8px;line-height:1.5"></div>
         </div>
 
-        <p class="muted" style="font-size:12.5px;line-height:1.5;margin:14px 0 0">
+        <p class="muted" style="font-size:13px;line-height:1.5;margin:14px 0 0">
           Don't believe any of this? Read the code:
           <a href="https://github.com/rajat-g/expense-manager">github.com/rajat-g/expense-manager</a>.
           No personal server, no database, no analytics.
@@ -390,7 +387,7 @@
         <div class="toolbar" style="margin-top:8px">
           <button id="clearCacheBtn" class="btn btn-ghost">Reload fresh app files</button>
         </div>
-        <div class="muted" style="font-size:12.5px;margin-top:6px">Seeing an old layout after an update? This clears cached files and reloads. Your data stays on this device.</div>
+        <div class="muted" style="font-size:13px;margin-top:6px">Seeing an old layout after an update? This clears cached files and reloads. Your data stays on this device.</div>
       </div>
 
       <div class="card" style="margin-top:12px">

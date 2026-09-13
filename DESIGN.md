@@ -21,7 +21,8 @@ template tropes — the numbers and the review queue are the interface.
   tab bar (blur, safe-area padding, 11px labels), sidebar hidden, hamburger removed.
 - Cards are inset groups, never nested (subgroups use hairline dividers).
 - Buttons: filled blue / gray-fill ghost / filled red danger; row actions borderless.
-- Charts (ApexCharts): iOS palette, SF stack, dark-aware income/expense colors.
+- Charts: area chart (ApexCharts, iOS palette, height matched to container) for
+  trends; Top Categories is ranked HTML bars (crisp at any width, no lib risk).
 - Focus rings, selection tint, themed caret/scrollbars; `prefers-reduced-motion` off-ramp.
 
 ## Ledger (Transactions surface, pinned direction)
