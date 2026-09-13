@@ -42,13 +42,17 @@ function initEvents(){
     downloadBlob(blob, "expenses.sqlite");
   };
 
-  // DB import
+  // DB import (restore point: rows missing from the file are tombstoned so the
+  // next push deletes them from the backup instead of resurrecting them)
   $("#importDbBtn").onclick = ()=>$("#importDbFile").click();  $("#importDbFile").onchange = async e=>{
     const f = e.target.files[0]; if(!f) return;
     const buf = await f.arrayBuffer();
+    const before = snapshotSyncIds();
     db = new SQL.Database(new Uint8Array(buf));
     // Ensure schema exists (older backups safety)
     createSchema();
+    seedDefaults();
+    tombstoneWipedIds(before);
     saveDB();
     refreshAll();
     e.target.value="";
@@ -76,9 +80,16 @@ function initEvents(){
     window.location.href = u.toString();
   };
 
-  // Seed + Clear
+  // Seed + Clear (clear tombstones the wipe so the next push deletes the rows
+  // from the encrypted backup instead of pulling them back)
   $("#seedBtn").onclick = ()=>{ if(confirm("Create sample data?")) { seedSample(); saveDB(); refreshAll(); }};
-  $("#clearBtn").onclick = ()=>{ if(confirm("Clear ALL data?")) { db = new SQL.Database(); createSchema(); seedDefaults(); saveDB(); refreshAll(); }};
+  $("#clearBtn").onclick = ()=>{
+    if(!confirm("Clear ALL data on this device? The empty state replaces the encrypted backup on the next push.")) return;
+    const before = snapshotSyncIds();
+    db = new SQL.Database(); createSchema(); seedDefaults();
+    tombstoneWipedIds(before);
+    saveDB(); refreshAll();
+  };
 }
 
 // Seed sample data

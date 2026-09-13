@@ -183,6 +183,37 @@ function recordTombstone(id, tbl){
   } catch (e) { console.warn("tombstone failed", e); }
 }
 
+// Snapshot every sync id (call BEFORE a wholesale replace like Clear/Import).
+function snapshotSyncIds(){
+  const out = new Map();
+  for (const t of ["account_groups", "accounts", "categories", "transactions"]) {
+    try {
+      for (const r of query(`SELECT id FROM ${t}`)) {
+        if (r && r.id != null && !out.has(r.id)) out.set(r.id, t);
+      }
+    } catch {}
+  }
+  return out;
+}
+
+// After a wholesale replace, tombstone every previously known id that no
+// longer exists — EXCEPT ids that live again (re-seeded defaults). Without
+// this the next pull-before-push merge resurrects the wiped rows from the
+// backup, while manual deletes (which tombstone) stay deleted.
+function tombstoneWipedIds(before){
+  const live = new Set();
+  for (const t of ["account_groups", "accounts", "categories", "transactions"]) {
+    try {
+      for (const r of query(`SELECT id FROM ${t}`)) {
+        if (r && r.id != null) live.add(r.id);
+      }
+    } catch {}
+  }
+  for (const [id, tbl] of before) {
+    if (!live.has(id)) recordTombstone(id, tbl);
+  }
+}
+
 // Enhance nav for mobile toggle
 function toggleNav(open){
   if(open===undefined){ document.body.classList.toggle('nav-open'); }
