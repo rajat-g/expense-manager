@@ -413,7 +413,21 @@ tbody tr:active{background:var(--fill)}
 .txrow[data-edit]{cursor:pointer}
 .txrow[data-edit]:hover{background:var(--fill)}
 .txrow.selected{background:var(--copper-tint)}
-.txselect{width:20px; height:20px; flex:none; accent-color:var(--copper)}
+.txselect{
+  appearance:none; -webkit-appearance:none;
+  width:22px; height:22px; margin:0 2px 0 0; flex:none;
+  border:1.5px solid var(--tertiary); border-radius:7px;
+  background:var(--card2); cursor:pointer; position:relative;
+  transition:background .15s, border-color .15s, transform .1s;
+}
+.txselect:hover{border-color:var(--copper); background:var(--copper-tint)}
+.txselect:active{transform:scale(.92)}
+.txselect:checked{border-color:var(--copper); background:var(--copper)}
+.txselect:checked::after{
+  content:""; position:absolute; left:6px; top:3px; width:6px; height:11px;
+  border:solid var(--copper-ink); border-width:0 2px 2px 0; transform:rotate(45deg);
+}
+.txselect:focus-visible{outline:2px solid var(--copper); outline-offset:2px}
 .bulk-bar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:12px 0}
 .bulk-bar[hidden]{display:none}
 .bulk-bar select{width:auto; min-width:150px}
