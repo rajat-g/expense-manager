@@ -7,6 +7,13 @@ iPhone Shortcut into a review inbox. Dark blue-black theme by default with a
 light mode, haptic feedback on mobile, and a desktop layout that earns its
 pixels.
 
+## Use it
+
+Open the hosted app directly: **[expense-manager-local.netlify.app](https://expense-manager-local.netlify.app/)**
+
+The app works offline after its shell is cached. Your ledger stays in this
+browser unless you configure encrypted GitHub sync in Settings.
+
 ## Features
 
 **Dashboard** — Net/in/out hero with quick Add + Sync actions, last-6-months
@@ -19,12 +26,15 @@ filters (date range, account, category, type, full-text search), dense
 day-grouped ledger. Tap a row to edit it in the bottom sheet (centred modal
 on desktop); `×` deletes with a tombstone so the delete propagates on next
 sync. Supports **transfers** between own accounts (excluded from in/out and
-balances-aware) and **splits** (one payment across categories). CSV export
-of the current view.
+balances-aware) and **splits** (one payment across categories). Select
+multiple transactions for bulk category changes, account changes, deletion,
+or CSV export. CSV export is also available for the current filtered view.
 
-**Recurring** — Monthly templates (rent, salary) that materialize themselves
-with collision-proof ids, so two devices can never duplicate a month.
-Pause/resume/edit/delete; deleting an instance keeps it deleted.
+**Recurring** — Templates for weekly, monthly, quarterly, and yearly entries
+(rent, salary, subscriptions). Upcoming occurrences can be previewed, one
+occurrence can be skipped without pausing the template, and overdue
+occurrences are shown. Materialized entries use collision-proof ids, so two
+devices can never duplicate an occurrence. Pause/resume/edit/delete templates.
 
 **Inbox (bank SMS)** — iPhone Shortcuts automation forwards each bank/UPI SMS
 to the app (`?inbox=1&body=…&sender=…`). Every message is parsed
@@ -59,6 +69,11 @@ delete warnings, manual sync outcomes; background auto-sync stays silent).
 Optional PIN app lock (hashed, never stored) on launch and after 10 minutes
 away.
 
+**Browser coverage** — Playwright tests cover mobile category actions, sync
+chip overflow, offline-to-online auto-pull recovery, bulk transaction actions,
+recurring preview/skip behavior, service-worker registration, and shell-cache
+population.
+
 ## File structure
 
 *   `index.html` — App shell: pages, bottom sheet, tab bar / sidebar.
@@ -66,8 +81,8 @@ away.
 *   `utils.js` — Selectors, formatting, theme state.
 *   `database.js` — SQLite lifecycle, schema + seeds, tombstone helpers.
 *   `dashboard.js` — Async dashboard cards + lazy charts.
-*   `transactions.js` — Ledger, filters, add/edit sheet, CSV export.
-*   `recurring.js` — Monthly templates + auto-materialization.
+*   `transactions.js` — Ledger, filters, add/edit sheet, bulk actions, CSV export.
+*   `recurring.js` — Multi-cadence templates, previews, skips + auto-materialization.
 *   `lock.js` — Optional PIN app lock.
 *   `accounts.js`, `categories.js` — Group/account/category management.
 *   `inbox.js` — SMS intake, outbox, review-to-transaction flow.
@@ -80,12 +95,13 @@ away.
 *   `haptics.js` + `vendor/web-haptics.js` — Haptic wrapper + engine (MIT).
 *   `manifest.webmanifest`, `sw.js`, `icons/`, `favicon.ico` — PWA assets.
 *   `server.js` — Zero-dependency static server for local development.
-*   `tests.html`, `tests/` — Browser mocha suite + `run-node-tests.js`.
+*   `tests.html`, `tests/` — Browser mocha suite, Playwright E2E tests + `run-node-tests.js`.
+*   `playwright.config.js` — Local Playwright configuration for browser tests.
 
 ## Run it
 
-Node is only for local dev and tests; hosting stays static (e.g. Netlify —
-deploy this folder, no build step).
+Node is only for local development and tests; hosting stays static (e.g.
+Netlify — deploy this folder, no build step).
 
 1.  Clone the repository.
 2.  `npm start` and open http://localhost:3000
@@ -93,11 +109,18 @@ deploy this folder, no build step).
     `$env:PORT=8910; npm start` on Windows PowerShell).
     You can also just open `index.html` directly.
 
+For the hosted version, open the URL in [Use it](#use-it).
+
 ## Tests
 
 *   `npm test` — fast Node checks: parsers, vault, git-remote, ledger merge.
 *   Open `tests.html` in a browser — full mocha suite (adds DB, transaction
     rules, utils).
+*   `npm run test:e2e` — Playwright browser tests for mobile UI, sync recovery,
+  bulk actions, recurring controls, and PWA caching.
+
+The first E2E run may require `npx playwright install chromium` to download
+the local test browser.
 
 ## Adding message parsers
 
