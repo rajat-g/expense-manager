@@ -54,10 +54,12 @@ function drawMonthChart(){
   const map = Object.fromEntries(months.map(m=>[m,{inc:0,exp:0}]));
   for(const r of rows){ if(map[r.m]) { map[r.m].inc = r.inc||0; map[r.m].exp = r.exp||0; } }
 
-  const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const INCOME = dark ? '#30d158' : '#1f9d55';
-  const EXPENSE = dark ? '#ff453a' : '#d70015';
-  const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
+  const dark = (typeof isDarkTheme === "function") ? isDarkTheme() : true;
+  const shortLandscape = window.matchMedia && window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches;
+  const areaH = shortLandscape ? 220 : (window.innerWidth < 560 ? 260 : 320);
+  const INCOME = dark ? '#a8d18f' : '#2f6b3c';
+  const EXPENSE = dark ? '#f08664' : '#b3402a';
+  const FONT = 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
 
   const options = {
     series: [{
@@ -69,7 +71,7 @@ function drawMonthChart(){
     }],
     chart: {
       type: 'area',
-      height: 320,
+      height: areaH,
       toolbar: {
         show: false
       },
@@ -103,7 +105,7 @@ function drawMonthChart(){
     responsive: [{
       breakpoint: 560,
       options: {
-        chart: { height: 260 },
+        chart: { height: shortLandscape ? 220 : 260 },
         legend: { position: 'bottom', horizontalAlign: 'center' }
       }
     }]

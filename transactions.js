@@ -44,7 +44,7 @@ function txGroupsHTML(rows, withDelete) {
   let cur = null, dInc = 0, dExp = 0, buf = [];
   const flushDay = () => {
     if (!cur) return;
-    html += txDayHTML(cur, dInc, dExp) + buf.join("");
+    html += `<div class="daycard">` + txDayHTML(cur, dInc, dExp) + buf.join("") + `</div>`;
   };
   for (const r of rows) {
     if (r.date !== cur) { flushDay(); cur = r.date; dInc = 0; dExp = 0; buf = []; }

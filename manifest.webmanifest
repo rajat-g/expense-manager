@@ -1,23 +1,29 @@
 {
+  "id": "./index.html",
   "name": "Expense Manager",
   "short_name": "Expenses",
   "description": "Offline expense manager with encrypted GitHub backup",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance"],
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#f6f7fb",
-  "theme_color": "#2b7a78",
+  "orientation": "any",
+  "background_color": "#070503",
+  "theme_color": "#070503",
   "icons": [
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icons/maskable-512.png",

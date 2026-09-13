@@ -110,15 +110,31 @@ const GhSync = (() => {
   }
 
   // Shown only when sync is correctly configured; hidden otherwise.
+  // Also drives the topbar sync chip (stateful even when unconfigured).
   function renderSyncTimes() {
     const el = $("ghSyncTimes");
-    if (!el) return;
+    const chip = $("syncChip");
+    const chipText = $("syncChipText");
     let configured = false;
     try { configured = isConfiguredForSync(readForm()); } catch {}
-    if (!configured) { el.style.display = "none"; return; }
-    el.style.display = "";
-    const t = getSyncTimes();
-    el.textContent = `Last push: ${timeAgo(t.push)} · Last pull: ${timeAgo(t.pull)}`;
+    if (el) {
+      if (!configured) { el.style.display = "none"; }
+      else {
+        el.style.display = "";
+        const t = getSyncTimes();
+        el.textContent = `Last push: ${timeAgo(t.push)} · Last pull: ${timeAgo(t.pull)}`;
+      }
+    }
+    if (chip) {
+      chip.classList.toggle("ok", configured);
+      if (chipText) {
+        if (!configured) { chipText.textContent = "Sync off"; }
+        else {
+          const t = getSyncTimes();
+          chipText.textContent = t.push ? `Synced ${timeAgo(t.push)}` : "Never pushed";
+        }
+      }
+    }
   }
 
   function setStatus(msg, isErr) {

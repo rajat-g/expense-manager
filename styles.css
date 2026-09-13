@@ -1,164 +1,190 @@
-/* Expense Manager — iOS-native visual system.
-   Grouped backgrounds, inset cards, tab bar + sidebar, SF stack, blue accent.
-   Light and dark follow the OS (prefers-color-scheme), like a native app. */
+/* Expense Manager — ember ledger world.
+   Warm charcoal canvas, copper accents, serif hero numerals. Light paper
+   counterpart. Offline-safe system type (+ Georgia display serif, no downloads).
+   Tabular numerals everywhere money lives. */
 
-:root{
-  color-scheme: light dark;
-  --bg:#f2f2f7;
-  --bg-secondary:#e5e5ea;
-  --card:#ffffff;
-  --card-secondary:#f2f2f7;
-  --text:#1c1c1e;
-  --secondary:#6b6b70;
-  --tertiary:#aeaeb2;
-  --separator:#e0e0e6;
-  --blue:#007aff;
-  --blue-pressed:#0052a3;
-  --blue-fill:#0066cc;
-  --blue-tint:rgba(0,122,255,.12);
-  --green:#1f9d55;
-  --green-tint:rgba(52,199,89,.14);
-  --red:#d70015;
-  --red-fill:#d70015;
-  --red-tint:rgba(255,59,48,.12);
-  --orange:#c93400;
-  --orange-tint:rgba(255,149,0,.16);
-  --teal:#00707a;
-  --teal-tint:rgba(48,176,199,.16);
-  --purple:#6a4fd0;
-  --purple-tint:rgba(88,86,214,.14);
-  --fill:#e9e9ee;
-  --shadow:0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.06);
-  --radius:14px;
-  --radius-sm:10px;
+:root, html[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#070503;
+  --card:#100d09;
+  --card2:#1b1610;
+  --text:#f8f2e6;
+  --secondary:#b8ab92;
+  --tertiary:#7d7160;
+  --separator:rgba(240,188,78,.18);
+  --copper:#f0bc4e;
+  --copper-deep:#d99a2b;
+  --copper-ink:#0a0705;
+  --copper-tint:rgba(240,188,78,.16);
+  --income:#a8d18f;
+  --income-deep:#5da24c;
+  --income-tint:rgba(168,209,143,.16);
+  --expense:#f08664;
+  --expense-deep:#c34a2e;
+  --expense-tint:rgba(240,134,100,.16);
+  --info:#8db4e5;
+  --info-tint:rgba(141,180,229,.16);
+  --violet:#c2aef0;
+  --violet-tint:rgba(194,174,240,.18);
+  --teal:#8ad4c7;
+  --teal-tint:rgba(138,212,199,.16);
+  --fill:#211b12;
+  --fab:#f0bc4e;
+  --fab-ink:#0a0705;
+  --shadow:0 1px 2px rgba(0,0,0,.7), 0 18px 44px rgba(0,0,0,.6);
+  --card-border:1px solid rgba(240,188,78,.16);
+  --radius:18px;
+  --radius-sm:12px;
   --sat:env(safe-area-inset-top, 0px);
   --sab:env(safe-area-inset-bottom, 0px);
+  --serif:Georgia, 'Times New Roman', serif;
+  --sans:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#000000;
-    --bg-secondary:#1c1c1e;
-    --card:#1c1c1e;
-    --card-secondary:#2c2c2e;
-    --text:#f2f2f7;
-    --secondary:#a7a7ae;
-    --tertiary:#636366;
-    --separator:#38383a;
-    --blue:#57a8ff;
-    --blue-pressed:#2f7fd6;
-    --blue-fill:#0066cc;
-    --blue-tint:rgba(87,168,255,.20);
-    --green:#30d158;
-    --green-tint:rgba(48,209,88,.16);
-    --red:#ff6b62;
-    --red-fill:#e02020;
-    --red-tint:rgba(255,69,58,.16);
-    --orange:#ff9f0a;
-    --orange-tint:rgba(255,159,10,.18);
-    --teal:#40c8e0;
-    --teal-tint:rgba(64,200,224,.16);
-    --purple:#bf5af2;
-    --purple-tint:rgba(191,90,242,.18);
-    --fill:#2c2c2e;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
-  }
+/* Explicit choice only — the default is dark (:root above). The OS scheme
+   never auto-flips the app; the toggle sets data-theme="dark"|"light". */
+html[data-theme="light"]{
+  color-scheme: light;
+  --bg:#f4efe6;
+  --card:#fffdf8;
+  --card2:#ece4d3;
+  --text:#201a12;
+  --secondary:#6b5f4c;
+  --tertiary:#a89c86;
+  --separator:#e3d9c4;
+  --copper:#9a6212;
+  --copper-deep:#9a6212;
+  --copper-ink:#ffffff;
+  --copper-tint:rgba(154,98,18,.12);
+  --income:#2f6b3c;
+  --income-deep:#2f6b3c;
+  --income-tint:rgba(47,107,60,.12);
+  --expense:#b3402a;
+  --expense-deep:#b3402a;
+  --expense-tint:rgba(179,64,42,.1);
+  --info:#1d4ed8;
+  --info-tint:rgba(29,78,216,.1);
+  --violet:#6d28d9;
+  --violet-tint:rgba(109,40,217,.1);
+  --teal:#0f766e;
+  --teal-tint:rgba(15,118,110,.1);
+  --fill:#ece4d3;
+  --fab:#b97a1f;
+  --fab-ink:#ffffff;
+  --shadow:0 1px 2px rgba(32,26,18,.07), 0 16px 40px rgba(32,26,18,.1);
+  --card-border:1px solid #e3d9c4;
 }
 
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-/* clip (not hidden): kills sideways overflow without creating a scroll
-   container, so fixed/sticky positioning keeps working */
 html, body{overflow-x:clip}
 body{
   margin:0;
   background:var(--bg);
+  background-image:radial-gradient(1200px 500px at 80% -10%, var(--copper-tint), transparent 60%);
+  background-attachment:fixed;
   color:var(--text);
-  font-family:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family:var(--sans);
   font-size:16px;
   line-height:1.45;
   display:flex;
   min-height:100vh;
-  caret-color:var(--blue);
+  caret-color:var(--copper);
 }
-::selection{background:var(--blue-tint)}
-:focus-visible{outline:2px solid var(--blue); outline-offset:2px; border-radius:6px}
+html[data-theme="light"] body{background-image:radial-gradient(1200px 500px at 80% -10%, rgba(154,98,18,.08), transparent 60%)}
+::selection{background:var(--copper-tint)}
+:focus-visible{outline:2px solid var(--copper); outline-offset:2px; border-radius:6px}
 h1,h2,h3{letter-spacing:-.01em; text-wrap:balance}
 p{max-width:72ch}
-button{font:inherit; color:inherit}
+button{font:inherit; color:inherit; cursor:pointer}
 input,select,textarea{font:inherit; color:var(--text)}
-/* iOS gives date/select fields a wide intrinsic size; without this they
-   overflow their grid column on phones instead of shrinking */
 input, select, textarea{min-width:0; max-width:100%}
 .grid-2 > *, .grid-3 > *, .sheet-grid > *, .toolbar > *{min-width:0}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:var(--tertiary); border-radius:8px; border:2px solid var(--bg)}
+a{color:var(--copper); text-decoration:none}
+a:hover{text-decoration:underline}
 
 /* ---------- top bar ---------- */
 .topbar{
   display:flex; align-items:center; gap:10px;
   padding:calc(10px + var(--sat)) 16px 10px;
-  background:color-mix(in srgb, var(--bg) 78%, transparent);
-  -webkit-backdrop-filter:saturate(1.8) blur(20px);
-  backdrop-filter:saturate(1.8) blur(20px);
-  border-bottom:.5px solid var(--separator);
+  background:color-mix(in srgb, var(--bg) 80%, transparent);
+  -webkit-backdrop-filter:saturate(1.4) blur(18px);
+  backdrop-filter:saturate(1.4) blur(18px);
+  border-bottom:1px solid var(--separator);
   position:sticky; top:0; z-index:800;
 }
 .brandmark{
-  width:30px; height:30px; border-radius:8px; flex:none;
-  background:var(--blue-fill); color:#fff;
+  width:30px; height:30px; border-radius:10px; flex:none;
+  background:var(--copper); color:var(--copper-ink);
   display:inline-flex; align-items:center; justify-content:center;
-  font-size:17px; font-weight:700;
+  font-size:17px; font-weight:800;
 }
-.brandname{font-size:17px; font-weight:600}
+.brandname{font-family:var(--serif); font-size:19px; font-weight:700}
 .topbar .spacer{flex:1}
+.theme-btn{
+  border:1px solid var(--separator); background:var(--card);
+  color:var(--secondary); width:34px; height:34px; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  cursor:pointer; flex:none;
+}
+.theme-btn:active{filter:brightness(1.15)}
+.theme-btn svg{width:18px; height:18px}
+.theme-btn:hover{color:var(--text); border-color:var(--copper)}
+.seg{display:inline-flex; background:var(--card2); border-radius:12px; padding:4px; gap:4px}
+.seg button{border:none; background:transparent; color:var(--secondary); font-weight:600; font-size:14px; padding:9px 16px; border-radius:9px; display:inline-flex; align-items:center; gap:8px}
+.seg button svg{width:17px; height:17px}
+.seg button[aria-pressed="true"]{background:var(--card); color:var(--text); box-shadow:var(--shadow)}
+.sidebar-foot{margin-top:auto; padding-top:12px; display:flex; justify-content:center}
+.sidebar-foot .theme-btn{width:40px; height:40px}
+.sync-chip{
+  display:inline-flex; align-items:center; gap:7px;
+  border:1px solid var(--separator); background:var(--card);
+  color:var(--secondary); font-size:12.5px; font-weight:600;
+  border-radius:999px; padding:7px 12px; cursor:pointer; white-space:nowrap;
+}
+.sync-chip .dot{width:8px; height:8px; border-radius:50%; background:var(--tertiary); flex:none}
+.sync-chip.ok{color:var(--text)}
+.sync-chip.ok .dot{background:var(--income)}
 
-/* ---------- sidebar (desktop column; mobile hides it for the tab bar) ---------- */
+/* ---------- icon rail (desktop) ---------- */
 nav.sidebar{
-  width:260px; flex:none;
+  width:84px; flex:none;
   background:var(--card);
-  border-right:.5px solid var(--separator);
-  padding:calc(20px + var(--sat)) 12px 20px;
-  display:flex; flex-direction:column; gap:2px;
+  border-right:1px solid var(--separator);
+  padding:calc(18px + var(--sat)) 10px 20px;
+  display:flex; flex-direction:column; gap:4px; align-items:stretch;
 }
-.sidebar .side-head{display:flex; align-items:center; gap:10px; padding:2px 10px 4px}
-.sidebar .side-head .brandname{font-size:19px}
-.sidebar .small{font-size:13px; color:var(--secondary); padding:0 10px 12px}
+.sidebar .side-head{display:flex; flex-direction:column; align-items:center; gap:8px; padding:2px 0 6px}
+.sidebar .side-head .brandname{font-size:13px}
+.sidebar .small{display:none}
 nav.sidebar button{
-  display:flex; align-items:center; gap:12px; width:100%;
-  border:none; background:transparent; color:var(--text);
-  font-size:16px; padding:9px 10px; border-radius:var(--radius-sm);
-  cursor:pointer; text-align:left;
+  display:flex; flex-direction:column; align-items:center; gap:4px; width:100%;
+  border:none; background:transparent; color:var(--secondary);
+  font-size:11px; font-weight:500; padding:10px 2px; border-radius:var(--radius-sm);
+  cursor:pointer; text-align:center;
 }
-nav.sidebar button svg{width:22px; height:22px; flex:none; color:var(--secondary)}
-nav.sidebar button:hover{background:var(--fill)}
-nav.sidebar button.active{background:var(--blue-tint); color:var(--blue); font-weight:600}
-nav.sidebar button.active svg{color:var(--blue)}
+nav.sidebar button svg{width:23px; height:23px; flex:none}
+nav.sidebar button:hover{background:var(--fill); color:var(--text)}
+nav.sidebar button.active{background:var(--copper-tint); color:var(--copper); font-weight:600}
+nav.sidebar button.active svg{color:var(--copper)}
 
-/* ---------- tab bar (iPhone) ---------- */
+/* ---------- tab bar (phones) ---------- */
 nav.tabbar{display:none}
 #overlay{display:none}
 
 /* ---------- content ---------- */
 main{flex:1; min-width:0; width:100%}
-.page{max-width:960px; margin:0 auto; padding:8px 20px 40px; width:100%}
-@media(min-width:901px){
-  /* sidebar carries the brand on desktop; the top bar is a mobile pattern */
-  .topbar{display:none}
-  /* independent scroll panes: sidebar and content scroll separately,
-     so nothing depends on fixed/sticky positioning on desktop */
-  html, body{height:100%}
-  body{overflow:hidden}
-  nav.sidebar{height:100vh; height:100dvh; overflow-y:auto}
-  main{margin-left:0; height:100vh; height:100dvh; overflow-y:auto}
-}
+.page{max-width:1000px; margin:0 auto; padding:8px 20px 40px; width:100%}
 .pagehead{padding:22px 4px 4px}
-.pagehead h1{margin:0; font-size:34px; line-height:1.12; font-weight:700; letter-spacing:-.02em}
+.pagehead h1{margin:0; font-family:var(--serif); font-size:34px; line-height:1.1; font-weight:700}
 .pagehead .sub{margin:4px 0 12px; color:var(--secondary); font-size:15px}
 .pagehead .sub:last-child{margin-bottom:6px}
 
 .card{
   background:var(--card);
+  border:var(--card-border);
   border-radius:var(--radius);
   padding:16px;
   box-shadow:var(--shadow);
@@ -166,7 +192,8 @@ main{flex:1; min-width:0; width:100%}
 }
 .card h2{margin:0 0 10px; font-size:17px; font-weight:600}
 .card > h2:first-child{margin-top:0}
-.row{display:flex; gap:12px; flex-wrap:wrap}
+.row{display:flex; gap:12px; flex-wrap:wrap; max-width:100%}
+.row > *{min-width:0}
 .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
 .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
 .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
@@ -175,103 +202,113 @@ main{flex:1; min-width:0; width:100%}
 .small{font-size:13px}
 .right{text-align:right}
 
-/* stat header */
+/* balance hero */
+.hero{position:relative; overflow:hidden}
+.hero .muted{font-size:14px}
+.hero-net{font-family:var(--serif); font-size:46px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; margin:2px 0 10px}
+.hero-split{display:flex; gap:22px; font-size:15px; color:var(--secondary)}
+.hero-split b{font-variant-numeric:tabular-nums}
+.hero-split .up{color:var(--income)}
+.hero-split .down{color:var(--expense)}
+.hero-actions{margin-top:14px}
+
+/* stat fallback (kept for compat) */
 .stat{
   flex:1 1 150px;
-  background:var(--card); border-radius:var(--radius);
+  background:var(--card); border:var(--card-border); border-radius:var(--radius);
   padding:14px 16px; box-shadow:var(--shadow); min-width:150px;
 }
 .stat .muted{font-size:13px}
-.stat .v{font-size:27px; font-weight:700; letter-spacing:-.02em; font-variant-numeric:tabular-nums; margin-top:2px}
+.stat .v{font-family:var(--serif); font-size:27px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px}
 
 /* money + pills */
-.money-pos{color:var(--green)}
-.money-neg{color:var(--red)}
+.money-pos{color:var(--income)}
+.money-neg{color:var(--expense)}
 .pill{
   display:inline-block; padding:3px 9px; border-radius:7px;
   font-size:13px; font-weight:600; line-height:1.5;
   background:var(--fill); color:var(--secondary);
   text-transform:capitalize; white-space:nowrap;
 }
-.pill.inc{background:var(--green-tint); color:var(--green)}
-.pill.exp{background:var(--red-tint); color:var(--red)}
-.pill.cash{background:var(--orange-tint); color:var(--orange)}
-.pill.bank{background:var(--blue-tint); color:var(--blue)}
+.pill.inc{background:var(--income-tint); color:var(--income)}
+.pill.exp{background:var(--expense-tint); color:var(--expense)}
+.pill.cash{background:var(--copper-tint); color:var(--copper)}
+.pill.bank{background:var(--info-tint); color:var(--info)}
 .pill.debit{background:var(--teal-tint); color:var(--teal)}
-.pill.credit{background:var(--purple-tint); color:var(--purple)}
+.pill.credit{background:var(--violet-tint); color:var(--violet)}
 
 /* tables as inset lists */
 table{width:100%; border-collapse:collapse}
 th{
-  font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.04em;
+  font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.05em;
   color:var(--secondary); text-align:left; padding:8px 10px 6px;
-  border-bottom:.5px solid var(--separator);
+  border-bottom:1px solid var(--separator);
 }
 td{
   padding:11px 10px; font-size:16px; vertical-align:middle;
-  border-bottom:.5px solid var(--separator);
+  border-bottom:1px solid var(--separator);
   font-variant-numeric:tabular-nums;
 }
 tr:last-child td{border-bottom:none}
 tbody tr:active{background:var(--fill)}
 
-/* ---------- ledger (dense day-grouped list) ---------- */
+/* ---------- ledger: day cards ---------- */
 .ledger-head{text-align:center; padding:16px 4px 2px}
-.ledger-head h1{margin:0; font-size:34px; font-weight:700; letter-spacing:-.02em; line-height:1.12}
-.pager{display:flex; align-items:center; justify-content:space-between; margin-top:2px}
-.pager-btn{border:none; background:transparent; color:var(--text); padding:10px 16px; min-width:52px; cursor:pointer; border-radius:10px}
+.ledger-head h1{margin:0; font-family:var(--serif); font-size:34px; font-weight:700; line-height:1.1}
+.pager{display:flex; align-items:center; justify-content:space-between; margin-top:6px; background:var(--card); border:var(--card-border); border-radius:999px; padding:2px 6px}
+.pager-btn{border:none; background:transparent; color:var(--text); padding:10px 16px; min-width:52px; cursor:pointer; border-radius:999px}
 .pager-btn:active{background:var(--fill)}
 .pager-btn svg{width:22px; height:22px; display:block; margin:0 auto}
-.month-title{border:none; background:transparent; color:var(--text); font-size:17px; font-weight:600; cursor:pointer; padding:8px 14px; border-radius:10px}
+.month-title{border:none; background:transparent; color:var(--text); font-size:16px; font-weight:600; cursor:pointer; padding:8px 14px; border-radius:999px}
 .month-title:active{background:var(--fill)}
-.led-sum{display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; padding:12px 0 14px; border-bottom:.5px solid var(--separator); margin-bottom:2px}
+.led-sum{display:grid; grid-template-columns:1fr 1fr 1fr; text-align:center; padding:14px 0; border-bottom:1px solid var(--separator); margin-bottom:12px}
 .led-sum .muted{font-size:15px}
-.led-inc,.led-exp,.led-net{font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px}
-.led-inc{color:var(--blue)}
-.led-exp{color:var(--red)}
+.led-inc,.led-exp,.led-net{font-family:var(--serif); font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px}
+.led-inc{color:var(--income)}
+.led-exp{color:var(--expense)}
 .led-net{color:var(--text)}
-.txday{display:flex; align-items:baseline; gap:10px; padding:16px 4px 4px}
-.txday .dd{font-size:22px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums}
-.txday .day-inc{color:#005fb8; font-weight:700; font-size:15px; font-variant-numeric:tabular-nums}
-.txday .day-exp{color:var(--red); font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; margin-left:16px}
-@media (prefers-color-scheme: dark){
-  .txday .day-inc{color:#57a8ff}
-}
-.txrow{display:flex; align-items:center; gap:12px; padding:11px 4px; border-bottom:.5px solid var(--separator)}
-.tile{width:34px; height:34px; border-radius:10px; flex:none; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; background:var(--blue-tint); color:#005fb8}
-@media (prefers-color-scheme: dark){
-  .tile{color:#57a8ff}
-}
+.daycard{background:var(--card); border:var(--card-border); border-radius:var(--radius); box-shadow:var(--shadow); padding:6px 14px 8px; margin:0 0 12px}
+.txday{display:flex; align-items:baseline; gap:10px; padding:12px 2px 8px; border-bottom:1px dashed var(--separator)}
+.txday .dd{font-family:var(--serif); font-size:22px; font-weight:700; font-variant-numeric:tabular-nums}
+.txday .day-inc{color:var(--income); font-weight:700; font-size:15px; font-variant-numeric:tabular-nums}
+.txday .day-exp{color:var(--expense); font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; margin-left:16px}
+.txrow{display:flex; align-items:center; gap:12px; padding:11px 2px; border-bottom:1px solid var(--separator)}
+.txrow:last-child{border-bottom:none}
+.tile{width:36px; height:36px; border-radius:12px; flex:none; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; background:var(--copper-tint); color:var(--copper)}
 .t-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:1px}
 .t-note{font-size:16px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .t-sub{font-size:13px; color:var(--secondary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .t-amt{font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap}
-.t-amt.inc{color:var(--blue)}
-.t-amt.exp{color:var(--red)}
+.t-amt.inc{color:var(--income)}
+.t-amt.exp{color:var(--expense)}
 .txdel{border:none; background:transparent; color:var(--tertiary); font-size:22px; line-height:1; padding:8px 6px; cursor:pointer; border-radius:8px; flex:none}
 .txdel:active{background:var(--fill)}
 .tx-empty{text-align:center; color:var(--secondary); padding:40px 0; font-size:15px; line-height:1.6}
 
 /* collapsible filter bar */
+.filtercard{background:transparent; border:none; box-shadow:none; padding:4px 2px}
 .filter-toggle{
   display:flex; align-items:center; gap:10px; width:100%;
-  border:none; background:transparent; color:var(--text);
-  font-size:16px; font-weight:600; cursor:pointer; padding:2px 0;
+  border:1px solid var(--separator); background:var(--card); color:var(--text);
+  font-size:15px; font-weight:600; cursor:pointer; padding:10px 14px; border-radius:999px;
+  box-shadow:var(--shadow);
 }
 .filter-toggle svg{width:20px; height:20px; color:var(--secondary); flex:none}
 #filterChev{transition:transform .2s ease-out; margin-left:auto}
 .filtercard.collapsed #filterChev{transform:rotate(-90deg)}
 .filtercard.collapsed #filterBody{display:none}
-#filterDot{width:8px; height:8px; border-radius:50%; background:var(--blue); display:none; flex:none}
+#filterDot{width:8px; height:8px; border-radius:50%; background:var(--copper); display:none; flex:none}
 #filterDot.on{display:inline-block}
+#filterBody{padding:2px 2px 0}
 
-/* FAB + bottom sheet (one authored motion: sheet rises, backdrop fades) */
-#txFab{display:none; position:fixed; right:18px; bottom:calc(100px + var(--sab)); width:60px; height:60px; border-radius:50%; border:none; background:#ef6351; color:#fff; cursor:pointer; z-index:950; box-shadow:0 4px 6px rgba(0,0,0,.28), 0 12px 28px rgba(0,0,0,.30); align-items:center; justify-content:center; transition:transform .12s ease-out, opacity .2s ease-out}
+/* FAB + bottom sheet */
+#txFab{display:none; position:fixed; right:18px; bottom:calc(100px + var(--sab)); width:60px; height:60px; border-radius:50%; border:none; background:var(--fab); color:var(--fab-ink); cursor:pointer; z-index:950; box-shadow:0 4px 6px rgba(0,0,0,.28), 0 12px 28px rgba(0,0,0,.30); align-items:center; justify-content:center; transition:transform .12s ease-out, opacity .2s ease-out}
 #txFab:active{transform:scale(.92)}
 #txFab svg{width:28px; height:28px}
 body[data-page="transactions"] #txFab{display:flex}
 @media(min-width:901px){ #txFab{bottom:28px} }
-#sheetBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.42); opacity:0; pointer-events:none; transition:opacity .22s ease-out; z-index:960}
+body.sheet-open #txFab{transform:scale(.6); opacity:0; pointer-events:none}
+#sheetBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); opacity:0; pointer-events:none; transition:opacity .22s ease-out; z-index:960}
 #sheetBackdrop.open{opacity:1; pointer-events:auto}
 #txSheet{position:fixed; left:0; right:0; bottom:0; z-index:970; transform:translateY(105%); transition:transform .3s cubic-bezier(.32,.72,.24,1); max-width:560px; margin:0 auto; max-height:88vh; max-height:88dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y; padding:0 12px calc(12px + var(--sab))}
 #txSheet.open{transform:none}
@@ -286,44 +323,37 @@ body[data-page="transactions"] #txFab{display:flex}
 .sheet-grid label{margin-bottom:3px; font-size:13px}
 .sheet-actions .btn-primary{flex:1}
 body.sheet-open, body.sheet-open main{overflow:hidden}
-/* presenting sheet dismisses chrome around it, like a native modal */
 body.sheet-open nav.tabbar{transform:translateY(110%)}
-body.sheet-open #txFab{transform:scale(.6); opacity:0; pointer-events:none}
 
 /* forms */
 label{display:block; font-size:13px; color:var(--secondary); margin-bottom:5px}
 input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{
-  width:100%; padding:9px 12px;
+  width:100%; padding:10px 12px;
   border:1px solid transparent; border-radius:var(--radius-sm);
-  background:var(--card-secondary);
+  background:var(--card2);
   font-size:15px;
 }
-/* Safari renders temporal inputs as inline-flex and misbehaves when forced
-   to display:block — so only non-temporal fields get it. */
 input:not([type="date"],[type="time"],[type="datetime-local"],[type="month"],[type="week"]),
 textarea,
 select{display:block}
-/* iOS Safari: native date/time widgets ignore width:100% once padded
-   (WebKit bug 301648). appearance:none makes the declared width apply;
-   the custom icon keeps the picker affordance (tap still opens it). */
+@media(max-width:900px){
+  input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{font-size:16px}
+}
+input::placeholder, textarea::placeholder{color:var(--tertiary)}
+input:focus, select:focus, textarea:focus{outline:2px solid var(--copper); outline-offset:0; background:var(--card)}
+input[type="checkbox"]{width:22px; height:22px; accent-color:var(--copper-deep)}
+input[type="date"]{min-height:44px}
+@media(max-width:560px){
+  input[type="date"]{padding-left:8px}
+}
 @supports (-webkit-touch-callout: none) {
   input[type="date"], input[type="time"]{
     -webkit-appearance:none; appearance:none;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='4' y='6' width='16' height='14' rx='3'/%3E%3Cpath d='M4 10.5h16M8.5 3.5v4M15.5 3.5v4'/%3E%3C/svg%3E");
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a89c86' stroke-linecap='round'%3E%3Crect x='4' y='6' width='16' height='14' rx='3'/%3E%3Cpath d='M4 10.5h16M8.5 3.5v4M15.5 3.5v4'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 10px center; background-size:16px 16px;
     padding-right:34px;
   }
 }
-@media(max-width:900px){
-  input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{font-size:16px}
-}
-@media (prefers-color-scheme: dark){
-  input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea{background:var(--card-secondary)}
-}
-input::placeholder, textarea::placeholder{color:var(--tertiary)}
-input:focus, select:focus, textarea:focus{outline:2px solid var(--blue); outline-offset:0; background:var(--card)}
-input[type="checkbox"]{width:22px; height:22px; accent-color:var(--blue)}
-input[type="date"]{min-height:44px}
 
 /* buttons */
 .btn{
@@ -334,15 +364,13 @@ input[type="date"]{min-height:44px}
 }
 .btn:active{transform:scale(.97)}
 .btn:disabled{opacity:.45; cursor:default; transform:none}
-.btn-primary{background:var(--blue-fill); color:#fff}
-.btn-primary:hover{filter:brightness(1.1)}
-.btn-ghost{background:var(--fill); color:var(--blue)}
-.btn-ghost:hover{filter:brightness(.96)}
-.btn-danger{background:var(--red-fill); color:#fff}
+.btn-primary{background:var(--copper); color:var(--copper-ink)}
+.btn-primary:hover{filter:brightness(1.07)}
+.btn-ghost{background:var(--fill); color:var(--text)}
+.btn-ghost:hover{filter:brightness(1.12)}
+.btn-danger{background:var(--expense-deep); color:#fff}
 .btn-danger:hover{filter:brightness(1.1)}
-/* borderless row actions, iOS style */
 td .btn-ghost, [data-act] .btn-ghost{padding:6px 8px; min-height:0}
-/* segmented-feel for small inline selects */
 select.compact{width:auto}
 
 /* charts */
@@ -351,16 +379,14 @@ select.compact{width:auto}
 /* ranked category bars (no chart lib: crisp at every width) */
 .catbar{display:flex; align-items:center; gap:12px; padding:9px 4px}
 .catbar .bar{flex:1; min-width:0; height:10px; border-radius:6px; background:var(--fill); overflow:hidden}
-.catbar .bar > span{display:block; height:100%; border-radius:6px; background:var(--blue)}
+.catbar .bar > span{display:block; height:100%; border-radius:6px; background:var(--copper)}
 .catbar .t-amt{font-size:15px}
-.row{max-width:100%}
-.row > *{min-width:0}
 
 /* inbox cards */
 #inboxList .card{margin-top:0; margin-bottom:12px}
 /* flat subgroup inside a card (avoids nested cards) */
 .subgroup{padding:4px 0 0}
-.subgroup + .subgroup{margin-top:14px; padding-top:14px; border-top:.5px solid var(--separator)}
+.subgroup + .subgroup{margin-top:14px; padding-top:14px; border-top:1px solid var(--separator)}
 .subgroup h2{margin:0 0 6px; font-size:15px; font-weight:600}
 .groupblock{margin-top:14px}
 .groupblock > h2{margin:0 4px 8px; font-size:17px; font-weight:600}
@@ -372,10 +398,37 @@ code{
   word-break:break-all;
 }
 footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
-a{color:var(--blue); text-decoration:none}
-a:hover{text-decoration:underline}
 
-/* ---------- iPhone layout ---------- */
+/* ---------- device classes ---------- */
+@media(min-width:901px) and (max-width:1100px){
+  nav.sidebar{width:76px}
+}
+@media(min-width:901px){
+  .topbar{display:none}
+  html, body{height:100%}
+  body{overflow:hidden}
+  nav.sidebar{height:100vh; height:100dvh; overflow-y:auto}
+  main{margin-left:0; height:100vh; height:100dvh; overflow-y:auto}
+}
+@media(orientation:landscape) and (max-height:500px){
+  .pagehead{padding-top:10px}
+  .pagehead h1{font-size:26px}
+  .ledger-head{padding-top:10px}
+  .chart-container{height:220px}
+  .topbar{padding-top:calc(6px + var(--sat))}
+  .page{padding-left:calc(20px + env(safe-area-inset-left)); padding-right:calc(20px + env(safe-area-inset-right))}
+  nav.tabbar{padding-left:calc(4px + env(safe-area-inset-left)); padding-right:calc(4px + env(safe-area-inset-right))}
+  #txSheet{max-height:94vh; max-height:94dvh}
+}
+@media(pointer:coarse){
+  .btn{min-height:44px}
+  td .btn-ghost, [data-act] .btn-ghost{padding:10px 12px}
+  .txdel{min-width:44px; min-height:44px}
+  .pager-btn{padding:12px 16px}
+  .filter-toggle{min-height:44px}
+}
+
+/* ---------- phones ---------- */
 @media(max-width:900px){
   body{display:block}
   nav.sidebar{display:none}
@@ -387,16 +440,17 @@ a:hover{text-decoration:underline}
   .ledger-head h1{font-size:30px}
   .grid-3{grid-template-columns:1fr 1fr}
   .stat .v{font-size:23px}
+  .hero-net{font-size:38px}
   .chart-container{height:280px}
   nav.tabbar{
     display:flex;
     position:fixed; left:0; right:0; bottom:0; z-index:1000;
     width:100vw; max-width:100vw; overflow:hidden;
     transition:transform .28s cubic-bezier(.32,.72,.24,1);
-    background:color-mix(in srgb, var(--card) 82%, transparent);
-    -webkit-backdrop-filter:saturate(1.8) blur(20px);
-    backdrop-filter:saturate(1.8) blur(20px);
-    border-top:.5px solid var(--separator);
+    background:color-mix(in srgb, var(--card) 84%, transparent);
+    -webkit-backdrop-filter:saturate(1.4) blur(18px);
+    backdrop-filter:saturate(1.4) blur(18px);
+    border-top:1px solid var(--separator);
     padding:6px 4px calc(8px + var(--sab));
   }
   nav.tabbar button{
@@ -406,17 +460,13 @@ a:hover{text-decoration:underline}
     padding:4px 0 2px; cursor:pointer; min-width:0; overflow:hidden;
   }
   nav.tabbar button svg{width:23px; height:23px; flex:none}
-  nav.tabbar button.active{color:var(--blue)}
+  nav.tabbar button.active{color:var(--copper)}
   nav.tabbar button span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; width:100%; text-align:center}
 }
 @media(max-width:560px){
   .grid-2, .grid-3{grid-template-columns:1fr}
-  /* iOS date fields render wide internals: give them every spare pixel
-     (right padding reserved for the calendar icon above) */
-  input[type="date"]{padding-left:8px}
   th:nth-child(2), td:nth-child(2){display:none}
 }
-/* very narrow phones: stack the sheet so iOS date fields never squeeze */
 @media(max-width:380px){
   .sheet-grid{grid-template-columns:1fr}
   .sheet-grid .span2{grid-column:auto}

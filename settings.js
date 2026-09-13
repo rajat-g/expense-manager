@@ -10,6 +10,28 @@ function initEvents(){
   $("#applyFilters").onclick = applyFilters;
   $("#filterToggle").onclick = toggleFilterBar;
 
+  // Dashboard hero quick actions
+  const qa = $("#quickAddBtn");
+  if (qa) qa.onclick = () => { try { openTxSheet(); } catch {} };
+  const sn = $("#syncNowBtn");
+  if (sn) sn.onclick = () => { try { if (typeof GhSync !== "undefined") GhSync.pushBackup(); } catch {} };
+  const chip = $("#syncChip");
+  if (chip) chip.onclick = () => {
+    const btn = document.querySelector('nav button[data-page="settings"]');
+    if (btn) btn.click();
+  };
+
+  // Theme: topbar + sidebar toggle, plus the explicit Dark/Light
+  // segmented control in Settings. All stay in sync via updateThemeButtons.
+  ["themeBtnM", "themeBtnD"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.onclick = toggleTheme;
+  });
+  $$("[data-theme-option]").forEach((el) => {
+    el.onclick = () => applyTheme(el.getAttribute("data-theme-option"));
+  });
+  try { updateThemeButtons(); } catch {}
+
   // CSV export
   $("#exportCsvBtn").onclick = exportTransactionsCsv;
 
