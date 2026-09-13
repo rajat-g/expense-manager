@@ -65,6 +65,7 @@ function renderAccountGroups(){
       if(accCount>0){ alert("Cannot delete: group has accounts. Please move or delete accounts first."); return; }
       if(!confirm("Delete this group?")) return;
       exec("DELETE FROM account_groups WHERE id=?", [id]); 
+      recordTombstone(id, "account_groups");
       saveDB(); 
       renderAccountGroups(); 
       renderAccounts(); 
@@ -172,6 +173,7 @@ function renderAccounts(){
       if(cnt>0){ alert("Cannot delete: account has transactions."); return; }
       if(!confirm("Delete this account?")) return;
       exec("DELETE FROM accounts WHERE id=?", [id]); 
+      recordTombstone(id, "accounts");
       saveDB(); 
       renderAccountGroups(); 
       renderAccounts(); 

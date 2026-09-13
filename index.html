@@ -291,8 +291,11 @@
       <div class="card" style="margin-top:12px">
         <h2>Encrypted GitHub Backup (pass-style)</h2>
         <p class="muted" style="font-size:13px;line-height:1.5">
-          Like <b>passwordstore.org</b>: your database is encrypted on this device, then stored
-          as one file in your private repo. GitHub only ever sees ciphertext.
+          Like <b>passwordstore.org</b>: your data is encrypted on this device, then stored
+          as <b>monthly shards</b> (one file per month plus dimensions) in your private repo.
+          GitHub only ever sees ciphertext.<br/>
+          Every push <b>pulls first and merges</b> (union by id, your edits win ties,
+          deletions propagate), so one device never silently wipes another's data.
         </p>
 
         <div class="subgroup">
@@ -304,7 +307,7 @@
           </div>
           <div id="ghRepoResolved" class="muted" style="font-size:13px;margin-top:8px"></div>
           <div class="grid-2" style="margin-top:8px">
-            <div><label>Backup file path</label><input type="text" id="ghPath" placeholder="expenses/expenses.enc.json"/></div>
+            <div><label>Backup path (monthly shards live alongside it)</label><input type="text" id="ghPath" placeholder="expenses/expenses.enc.json"/></div>
             <div><label>Messages folder</label><input type="text" id="ghMsgFolder" placeholder="messages"/></div>
             <div><label>Branch</label><input type="text" id="ghBranch" placeholder="main"/></div>
           </div>
@@ -423,6 +426,7 @@
   <script src="settings.js"></script>
   <script src="vault.js"></script>
   <script src="gitremote.js"></script>
+  <script src="ledger.js"></script>
   <script src="github-sync.js"></script>
   <script src="inbox.js"></script>
   <script>

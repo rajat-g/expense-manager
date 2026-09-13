@@ -4,6 +4,7 @@ const assert = require("assert");
 const MsgParser = require("../parsers.js");
 const Vault = require("../vault.js");
 const GitRemote = require("../gitremote.js");
+const Ledger = require("../ledger.js");
 
 async function main() {
   // --- parsers ---
@@ -50,6 +51,21 @@ async function main() {
   assert.strictEqual(GitRemote.isGitHubHost("github.com"), true);
   assert.strictEqual(GitRemote.isGitHubHost("gitlab.com"), false);
   console.log("gitremote: PASS (6 cases)");
+
+  // --- ledger ---
+  assert.strictEqual(Ledger.monthKey("2026-09-14"), "2026-09");
+  assert.strictEqual(Ledger.monthKey("nope"), "undated");
+  const merged = Ledger.mergeLedgers(
+    { dims: { account_groups: [], accounts: [], categories: [], tombstones: [{ id: "gone" }] },
+      months: { "2026-09": [{ id: "t1", date: "2026-09-01" }] } },
+    { dims: { account_groups: [], accounts: [], categories: [], tombstones: [] },
+      months: { "2026-09": [{ id: "t2", date: "2026-09-02" }], "2026-08": [{ id: "gone", date: "2026-08-01" }] } });
+  assert.deepStrictEqual(Object.keys(merged.months), ["2026-09"]);
+  assert.deepStrictEqual(merged.months["2026-09"].map((t) => t.id).sort(), ["t1", "t2"]);
+  const flat = Ledger.flattenLedger(merged);
+  assert.strictEqual(flat.transactions.length, 2);
+  assert.strictEqual(Ledger.shardPaths("expenses/expenses.enc.json").month("2026-09"), "expenses/months/2026-09.enc.json");
+  console.log("ledger: PASS (merge + tombstones + sharding)");
 
   console.log("ALL NODE TESTS PASS");
 }

@@ -247,6 +247,7 @@ function applyFilters(){
     b.onclick = ()=>{
       if(!confirm("Delete this transaction?")) return;
       exec("DELETE FROM transactions WHERE id=?", [b.dataset.del]);
+      recordTombstone(b.dataset.del, "transactions");
       saveDB();
       applyFilters();
       refreshDashboardBits();

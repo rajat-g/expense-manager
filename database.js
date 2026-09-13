@@ -80,6 +80,9 @@ function createSchema(){
     CREATE INDEX IF NOT EXISTS idx_tx_account ON transactions(accountId);
     CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(categoryId);
     CREATE INDEX IF NOT EXISTS idx_account_group ON accounts(groupId);
+    -- Deletion log for sync: deleted ids stay listed so merges on other
+    -- devices drop them too (prevents deleted rows resurrecting on push).
+    CREATE TABLE IF NOT EXISTS tombstones (id TEXT PRIMARY KEY, tbl TEXT, deleted_at TEXT);
   `);
 }
 
@@ -170,6 +173,14 @@ function exec(sql, params=[]){
   const stmt = db.prepare(sql); 
   stmt.run(params); 
   stmt.free();
+}
+
+// Log a deletion so sharded sync drops the id everywhere (not just here).
+function recordTombstone(id, tbl){
+  try {
+    exec("INSERT OR IGNORE INTO tombstones(id, tbl, deleted_at) VALUES (?,?,?)",
+      [id, tbl, new Date().toISOString()]);
+  } catch (e) { console.warn("tombstone failed", e); }
 }
 
 // Enhance nav for mobile toggle

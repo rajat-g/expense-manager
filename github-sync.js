@@ -278,47 +278,219 @@ const GhSync = (() => {
     return new TextDecoder().decode(bytes);
   }
 
-  // Download + decrypt the whole-DB backup. Throws friendly errors.
-  async function fetchBackupBytes(cfg, pw) {
-    const remote = await getRemote(cfg);
-    if (!remote || !remote.content) throw new Error("No backup file found at that path/branch yet. Push first.");
-    const json = b64DecodeUtf8(remote.content);
-    let payload;
-    try { payload = JSON.parse(json); } catch { throw new Error("Remote file is not valid vault JSON."); }
+  // ---- Sharded ledger sync (pull-before-push by default) ----
+  // Local SQLite stays the working copy. GitHub holds one encrypted file per
+  // shard: <dir>/dims.enc.json + <dir>/months/YYYY-MM.enc.json.
+  // Every push first pulls remote shards, unions by id (local wins conflicts,
+  // tombstones delete), writes the merged result back locally AND remotely,
+  // so no device silently overwrites another.
+
+  const LEDGER_TABLES = {
+    account_groups: ["id", "name", "type"],
+    accounts: ["id", "name", "groupId"],
+    categories: ["id", "name", "type"],
+    transactions: ["id", "date", "accountId", "categoryId", "type", "amount", "note"],
+    tombstones: ["id", "tbl", "deleted_at"],
+  };
+
+  // Read every sync table out of a sql.js Database (live db or legacy import).
+  function readAllTables(sqlDb) {
+    const out = {};
+    for (const t of Object.keys(LEDGER_TABLES)) {
+      try {
+        const res = sqlDb.exec(`SELECT * FROM ${t}`);
+        if (!res.length) { out[t] = []; continue; }
+        const { columns, values } = res[0];
+        out[t] = values.map((v) => Object.fromEntries(v.map((x, i) => [columns[i], x])));
+      } catch { out[t] = []; }
+    }
+    return out;
+  }
+
+  function dumpLocalLedger() {
+    const rows = readAllTables(db);
+    return {
+      dims: {
+        account_groups: rows.account_groups,
+        accounts: rows.accounts,
+        categories: rows.categories,
+        tombstones: rows.tombstones,
+      },
+      months: Ledger.splitMonths(rows.transactions),
+    };
+  }
+
+  // Replace local tables with merged data (the "pull" half). Fixed table list
+  // keeps this injection-safe.
+  function replaceAllTables(flat) {
+    suppressAuto = true;
     try {
-      return { bytes: await Vault.decryptDb(pw, payload), sha: remote.sha || null };
-    } catch {
+      for (const t of Object.keys(LEDGER_TABLES)) {
+        exec(`DELETE FROM ${t}`);
+        const cols = LEDGER_TABLES[t];
+        const stmt = db.prepare(`INSERT OR IGNORE INTO ${t}(${cols.join(",")}) VALUES (${cols.map(() => "?").join(",")})`);
+        for (const r of (flat[t] || [])) stmt.run(cols.map((c) => (r[c] ?? null)));
+        stmt.free();
+      }
+      saveDB();
+      refreshAll();
+    } finally {
+      suppressAuto = false;
+    }
+  }
+
+  async function decryptShardPayload(file, what) {
+    if (!file || !file.content) throw new Error(`Missing ${what}.`);
+    let payload;
+    try { payload = JSON.parse(b64DecodeUtf8(file.content)); }
+    catch { throw new Error(`Remote ${what} is not valid vault JSON.`); }
+    try {
+      const text = await Vault.decryptText(passphraseOrThrow(), payload);
+      const rec = JSON.parse(text);
+      if (!rec || rec.kind !== "expense-shard") throw new Error("bad kind");
+      return rec;
+    } catch (e) {
+      if (e && e.message === "bad kind") throw new Error(`Remote ${what} is not a ledger shard.`);
       throw new Error("Decryption failed. Wrong passphrase or file tampered with.");
     }
   }
 
-  // Swap the live DB for downloaded bytes (used by manual + auto pull).
-  function applyBackupBytes(bytes) {
-    suppressAuto = true;
-    db = new SQL.Database(bytes);
-    createSchema();
-    saveDB();
-    refreshAll();
-    suppressAuto = false;
+  function passphraseOrThrow() {
+    const p = ($("ghPassphrase")?.value || "") || (loadCfg().passphrase || "");
+    if (!p) throw new Error("Enter your encryption passphrase.");
+    return p;
   }
 
+  // Fetch every remote shard (+ legacy single file on first run) into a ledger.
+  async function fetchLedger(cfg, pw) {
+    const paths = Ledger.shardPaths(cfg.path);
+    const merged = Ledger.emptyLedger();
+    // dims
+    try {
+      const file = await getRemotePath(cfg, paths.dims);
+      if (file) {
+        const rec = await decryptShardPayload(file, "dimensions");
+        for (const t of ["account_groups", "accounts", "categories", "tombstones"]) {
+          if (Array.isArray((rec.tables || {})[t])) merged.dims[t] = rec.tables[t];
+        }
+      }
+    } catch (e) {
+      if (!/Missing dimensions/.test(e?.message || "")) throw e;
+    }
+    // months
+    const entries = await listRemoteFolder(cfg, paths.monthsDir);
+    for (const e of entries.filter((x) => x && x.name && x.name.endsWith(".enc.json"))) {
+      const key = e.name.replace(/\.enc\.json$/, "");
+      const file = await getRemotePath(cfg, paths.month(key));
+      const rec = await decryptShardPayload(file, `month ${key}`);
+      const rows = ((rec.tables || {}).transactions || []).filter((t) => Ledger.monthKey(t.date) === key);
+      if (rows.length) merged.months[key] = (merged.months[key] || []).concat(rows);
+    }
+    // legacy single-file backup: fold in once (left untouched afterwards)
+    try {
+      const legacy = await getRemotePath(cfg, paths.legacy);
+      if (legacy && legacy.content) {
+        const payload = JSON.parse(b64DecodeUtf8(legacy.content));
+        const bytes = await Vault.decryptDb(pw, payload);
+        const tmp = new SQL.Database(bytes);
+        try {
+          const rows = readAllTables(tmp);
+          for (const t of ["account_groups", "accounts", "categories", "tombstones"]) {
+            merged.dims[t] = merged.dims[t].concat(rows[t]);
+          }
+          const byMonth = Ledger.splitMonths(rows.transactions);
+          for (const k of Object.keys(byMonth)) {
+            merged.months[k] = (merged.months[k] || []).concat(byMonth[k]);
+          }
+        } finally {
+          try { tmp.close(); } catch {}
+        }
+      }
+    } catch { /* no legacy file: normal going forward */ }
+    return merged;
+  }
+
+  async function putLedgerShard(cfg, repoPath, record) {
+    const payload = await Vault.encryptText(passphraseOrThrow(), JSON.stringify(record));
+    const contentB64 = b64EncodeUtf8(JSON.stringify(payload, null, 2));
+    const remote = await getRemotePath(cfg, repoPath);
+    await putRemoteFile(cfg, repoPath, contentB64,
+      `ledger ${repoPath} ${new Date().toISOString()}`, remote && remote.sha);
+  }
+
+  function shardRecord(scope, tables) {
+    return { kind: "expense-shard", version: 1, scope, tables };
+  }
+
+  // Push with pull-before-push: pull remote, union (local wins, tombstones
+  // delete), write merged result back to local SQLite AND to GitHub shards.
+  async function pushBackup() {
+    const cfg = readForm();
+    try {
+      requireCfg(cfg);
+      passphraseOrThrow();
+      if (typeof db === "undefined" || !db) throw new Error("Database not ready yet.");
+      const paths = Ledger.shardPaths(cfg.path);
+      setStatus("Pulling remote shards before push…");
+      const remote = await fetchLedger(cfg, passphraseOrThrow());
+      const merged = Ledger.mergeLedgers(dumpLocalLedger(), remote);
+      const flat = Ledger.flattenLedger(merged);
+      replaceAllTables(flat);
+      const txCount = flat.transactions.length;
+      setStatus(`Pushing ${Object.keys(merged.months).length} month shard(s) + dimensions (${txCount} transactions)…`);
+      await putLedgerShard(cfg, paths.dims, shardRecord("dims", {
+        account_groups: merged.dims.account_groups,
+        accounts: merged.dims.accounts,
+        categories: merged.dims.categories,
+        tombstones: merged.dims.tombstones,
+      }));
+      for (const key of Object.keys(merged.months).sort()) {
+        await putLedgerShard(cfg, paths.month(key), shardRecord(key, {
+          transactions: merged.months[key],
+        }));
+        setStatus(`Pushed ${key}…`);
+      }
+      // Drop remote month shards that are now empty (tombstones enforce deletes)
+      try {
+        const entries = await listRemoteFolder(cfg, paths.monthsDir);
+        for (const e of entries.filter((x) => x && x.name && x.name.endsWith(".enc.json"))) {
+          const key = e.name.replace(/\.enc\.json$/, "");
+          if (!merged.months[key]) {
+            await deleteRemoteFile(cfg, paths.month(key), e.sha);
+          }
+        }
+      } catch {}
+      saveCfg(cfg);
+      setStatus(`Pushed ${txCount} transaction(s) across ${Object.keys(merged.months).length} month(s) to ${cfg.owner}/${cfg.repo}@${cfg.branch}:${paths.dir || "/"} ✓ (legacy single file left untouched)`);
+    } catch (e) {
+      try { suppressAuto = false; } catch {}
+      setStatus("Push failed: " + (e?.message || e), true);
+    }
+  }
+
+  // Manual pull: replace local tables with the union of all remote shards
+  // (+ legacy single file if shards don't exist yet). Confirmed by caller.
   async function pullBackup() {
     const cfg = readForm();
     try {
       requireCfg(cfg);
-      const pw = passphrase();
-      setStatus("Downloading ciphertext from GitHub…");
-      const { bytes, sha } = await fetchBackupBytes(cfg, pw);
-      setStatus("Decrypting…");
-      applyBackupBytes(bytes);
+      const pw = passphraseOrThrow();
+      if (typeof db === "undefined" || !db) throw new Error("Database not ready yet.");
+      setStatus("Downloading ledger shards…");
+      const remote = await fetchLedger(cfg, pw);
+      const flat = Ledger.flattenLedger(remote);
+      const txCount = flat.transactions.length;
+      if (!txCount && !flat.accounts.length) {
+        throw new Error("No backup found at that path/branch yet. Push first.");
+      }
+      replaceAllTables(flat);
       saveCfg(cfg);
-      setStatus(`Pulled and decrypted ${cfg.path} ✓ (git sha ${String(sha || "").slice(0, 7)})`);
+      setStatus(`Pulled ${txCount} transaction(s) across ${Object.keys(remote.months).length} month(s) ✓`);
     } catch (e) {
-      suppressAuto = false;
+      try { suppressAuto = false; } catch {}
       setStatus("Pull failed: " + (e?.message || e), true);
     }
   }
-
   // Merge persisted settings with owner/repo parsed from the remote URL.
   function resolveCfg(cfg) {
     const parsed = (typeof GitRemote !== "undefined") ? GitRemote.parseGitRemote(cfg.remoteUrl || "") : null;
@@ -377,9 +549,9 @@ const GhSync = (() => {
         setStatus("Auto-pull skipped: connection failed. Check token, repo and branch.", true);
         return false;
       }
-      setStatus(`Auto-pull: downloading backup as @${login}…`);
-      const { bytes } = await fetchBackupBytes(cfg, cfg.passphrase);
-      applyBackupBytes(bytes);
+      setStatus(`Auto-pull: downloading ledger as @${login}…`);
+      const remote = await fetchLedger(cfg, cfg.passphrase);
+      replaceAllTables(Ledger.flattenLedger(remote));
       try { if (typeof Inbox !== "undefined" && Inbox.refreshRemote) await Inbox.refreshRemote(); } catch {}
       saveCfg(cfg);
       setStatus(`Auto-pulled backup + messages as @${login} ✓`);

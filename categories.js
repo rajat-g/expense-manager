@@ -56,6 +56,7 @@ function renderCategories(){
       if(cnt>0){ alert("Cannot delete: category has transactions."); return; }
       if(!confirm("Delete this category?")) return;
       exec("DELETE FROM categories WHERE id=?", [id]); 
+      recordTombstone(id, "categories");
       saveDB(); 
       renderCategories(); 
       renderTxSelectors(); 

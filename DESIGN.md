@@ -35,6 +35,8 @@ template tropes — the numbers and the review queue are the interface.
   conversions shifted month boundaries for IST and were removed.
 - Filters live behind a collapsible bar (funnel row, blue dot when narrowed);
   plain full-month views start collapsed, custom views stay open.
+- Sync: sharded monthly ledger (dims + YYYY-MM ciphertext files, pull-before-push
+  union by id with local-wins ties, tombstoned deletes); messages per-file; outbox.
 
 ## Rules carried from review
 - No emoji as icons (authored 1.7px stroke SVGs); ₹ and factual copy preserved.
