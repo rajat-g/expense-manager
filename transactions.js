@@ -88,7 +88,9 @@ function updateFilterBar(from, to, acc, cat, type) {
   if (!card || !dot || !toggle) return;
   const narrowed = txRangeTitle(from, to) === "Custom range" || !!(acc || cat || type);
   dot.classList.toggle("on", narrowed);
-  if (!filterTouched) {
+  // Desktop shows the filter panel expanded; only phones auto-collapse it.
+  const desktop = window.matchMedia && window.matchMedia("(min-width: 901px)").matches;
+  if (!filterTouched && !desktop) {
     const plain = !narrowed;
     card.classList.toggle("collapsed", plain);
     toggle.setAttribute("aria-expanded", String(!plain));

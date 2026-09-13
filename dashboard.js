@@ -60,6 +60,11 @@ function drawMonthChart(){
   const areaH = shortLandscape ? 220 : (window.innerWidth < 560 ? 260 : 320);
   const INCOME = dark ? '#a8d18f' : '#2f6b3c';
   const EXPENSE = dark ? '#f08664' : '#b3402a';
+  // ApexCharts defaults to dark-on-light text: pin every text element to the
+  // active theme or the legend + axes are unreadable on the dark canvas.
+  const TEXT = dark ? '#edf3ff' : '#201a12';
+  const MUTED = dark ? '#9db1cc' : '#6b5f4c';
+  const GRID = dark ? 'rgba(157,177,204,.14)' : '#e3d9c4';
   const FONT = 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
 
   const options = {
@@ -73,6 +78,7 @@ function drawMonthChart(){
     chart: {
       type: 'area',
       height: areaH,
+      foreColor: MUTED,
       toolbar: {
         show: false
       },
@@ -80,6 +86,9 @@ function drawMonthChart(){
       animations: { enabled: false },
     },
     colors: [INCOME, EXPENSE],
+    grid: {
+      borderColor: GRID,
+    },
     dataLabels: {
       enabled: false
     },
@@ -88,20 +97,28 @@ function drawMonthChart(){
     },
     xaxis: {
       categories: months,
+      labels: {
+        style: { colors: MUTED }
+      }
     },
     yaxis: {
       labels: {
+        style: { colors: MUTED },
         formatter: (value) => { return fmt(value) }
       }
     },
     tooltip: {
+      theme: dark ? 'dark' : 'light',
       x: {
         format: 'MMM yyyy'
       },
     },
     legend: {
       position: 'top',
-      horizontalAlign: 'right'
+      horizontalAlign: 'right',
+      labels: {
+        colors: TEXT
+      }
     },
     responsive: [{
       breakpoint: 560,

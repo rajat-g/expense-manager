@@ -166,6 +166,7 @@ nav.sidebar button{
   border:none; background:transparent; color:var(--secondary);
   font-size:11px; font-weight:500; padding:10px 2px; border-radius:var(--radius-sm);
   cursor:pointer; text-align:center;
+  transition:background .15s ease-out, color .15s ease-out;
 }
 nav.sidebar button svg{width:23px; height:23px; flex:none}
 nav.sidebar button:hover{background:var(--fill); color:var(--text)}
@@ -290,7 +291,7 @@ tbody tr:active{background:var(--fill)}
 .tx-empty{text-align:center; color:var(--secondary); padding:40px 0; font-size:15px; line-height:1.6}
 
 /* collapsible filter bar */
-.filtercard{background:transparent; border:none; box-shadow:none; padding:4px 2px}
+.filtercard{background:transparent; border:none; box-shadow:none; padding:4px 2px; margin-top:12px}
 .filter-toggle{
   display:flex; align-items:center; gap:10px; width:100%;
   border:1px solid var(--separator); background:var(--card); color:var(--text);
@@ -404,7 +405,7 @@ code{
 footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
 
 /* ---------- device classes ---------- */
-@media(min-width:901px) and (max-width:1100px){
+@media(min-width:901px) and (max-width:1150px){
   nav.sidebar{width:76px}
 }
 @media(min-width:901px){
@@ -413,6 +414,46 @@ footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
   body{overflow:hidden}
   nav.sidebar{height:100vh; height:100dvh; overflow-y:auto}
   main{margin-left:0; height:100vh; height:100dvh; overflow-y:auto}
+  .page{max-width:1160px; padding:12px 28px 48px}
+  .pagehead h1{font-size:36px}
+  /* transactions: ledger + sticky filter panel */
+  #transactions.page{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:0 20px; align-items:start}
+  #transactions .ledger-head{grid-column:1/-1}
+  #transactions .led-sum{grid-column:1/-1; margin-bottom:4px}
+  #transactions #txList{grid-column:1; grid-row:3; min-width:0}
+  #transactions .filtercard{
+    grid-column:2; grid-row:3; position:sticky; top:12px; margin-top:0;
+    background:var(--card); border:var(--card-border);
+    border-radius:var(--radius); box-shadow:var(--shadow); padding:14px;
+  }
+  #transactions .filtercard .filter-toggle{box-shadow:none}
+  /* bottom sheet becomes a centered modal */
+  #txSheet{
+    left:50%; right:auto; top:50%; bottom:auto;
+    width:min(560px, calc(100vw - 64px));
+    max-height:min(88vh, 760px); padding:0;
+    transform:translate(-50%, calc(-50% + 16px));
+    opacity:0; visibility:hidden;
+    transition:transform .22s ease-out, opacity .18s ease-out, visibility 0s linear .25s;
+  }
+  #txSheet.open{transform:translate(-50%, -50%); opacity:1; visibility:visible; transition:transform .22s ease-out, opacity .18s ease-out, visibility 0s}
+  /* form-heavy settings read better capped */
+  #settings.page .card{max-width:880px}
+}
+/* wide desktop: full labeled sidebar */
+@media(min-width:1151px){
+  nav.sidebar{width:236px; padding:calc(20px + var(--sat)) 14px 20px; gap:2px}
+  .sidebar .side-head{flex-direction:row; align-items:center; justify-content:flex-start; gap:10px; padding:2px 8px 10px}
+  .sidebar .side-head .brandname{font-size:18px}
+  .sidebar .small{display:block; padding:0 8px 12px}
+  nav.sidebar button{
+    flex-direction:row; align-items:center; gap:12px;
+    font-size:14.5px; font-weight:500; text-align:left;
+    padding:11px 14px;
+    transition:background .15s ease-out, color .15s ease-out;
+  }
+  nav.sidebar button svg{width:22px; height:22px}
+  .sidebar-foot{justify-content:flex-start; padding-left:8px}
 }
 @media(orientation:landscape) and (max-height:500px){
   .pagehead{padding-top:10px}
