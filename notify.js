@@ -116,5 +116,32 @@ const Notify = (() => {
     }
   }
 
-  return { alert, confirm, prompt, toast };
+  // Choice dialog: a select plus Move/confirm and optional danger buttons.
+  // options: [{ value, label }]. Resolves { action: "ok", value },
+  // { action: "danger" }, or null on cancel.
+  function choose(title, text, options, cfg) {
+    const o = cfg || {};
+    const inputOptions = {};
+    for (const opt of options || []) inputOptions[opt.value] = opt.label;
+    return fire({
+      title: String(title ?? ""),
+      text: String(text ?? ""),
+      icon: o.danger ? "warning" : "question",
+      input: "select",
+      inputOptions,
+      inputValidator: (v) => (!v ? "Pick one" : undefined),
+      showCancelButton: true,
+      confirmButtonText: o.okText || "Move",
+      cancelButtonText: "Cancel",
+      showDenyButton: !!o.dangerText,
+      denyButtonText: o.dangerText || "",
+    }).then((r) => {
+      if (!r) return null;
+      if (r.isConfirmed) return { action: "ok", value: r.value };
+      if (r.isDenied) return { action: "danger" };
+      return null;
+    });
+  }
+
+  return { alert, confirm, prompt, choose, toast };
 })();

@@ -23,6 +23,11 @@ const GhSync = (() => {
   let syncingNow = false;
   let pushFailCount = 0;
   let retryTimer = null;
+  // Connection state for the topbar chip: unknown (not probed yet — renders
+  // as online so first paint never flashes red), online, offline, auth-error.
+  let connState = "unknown";
+  let probeTimer = null;
+  const PROBE_MS = 60000;
 
   function $(id) { return document.getElementById(id); }
 
@@ -155,13 +160,20 @@ const GhSync = (() => {
       // Chip follows the latest activity of either direction: with auto-pull
       // only, pulls are the heartbeat — a push-only chip goes stale.
       const last = t.push && t.pull ? (t.push > t.pull ? t.push : t.pull) : (t.push || t.pull);
-      chip.classList.toggle("ok", configured && !failed && !syncingNow);
-      chip.classList.toggle("err", !!failed);
+      const offline = configured && connState === "offline";
+      const authBad = configured && connState === "auth-error";
+      const live = configured && !failed && !syncingNow && !offline && !authBad;
+      chip.classList.toggle("ok", live);
+      chip.classList.toggle("err", !!failed || offline);
+      chip.classList.toggle("warn", !!authBad && !failed && !offline);
       chip.classList.toggle("busy", !!syncingNow);
+      chip.classList.toggle("live", !!live);
       if (chipText) {
         if (!configured) { chipText.textContent = "Sync off"; }
         else if (syncingNow) { chipText.textContent = "Syncing…"; }
         else if (failed) { chipText.textContent = "Sync failed"; }
+        else if (offline) { chipText.textContent = last ? `Offline · synced ${timeAgo(last)}` : "Offline · never synced"; }
+        else if (authBad) { chipText.textContent = "Check token"; }
         else {
           chipText.textContent = last ? `Synced ${timeAgo(last)}` : "Never synced";
         }
@@ -681,6 +693,67 @@ const GhSync = (() => {
     } catch { return null; }
   }
 
+  // ---- Connection monitor: drives the topbar chip ----
+  function setConn(s) {
+    if (connState === s) return;
+    connState = s;
+    try { renderSyncTimes(); } catch {}
+  }
+
+  // True when GitHub is reachable right now. With a token saved it doubles
+  // as an auth check (expired tokens surface as auth-error, not offline):
+  // a rejected token with a reachable GitHub means auth-error, while an
+  // unreachable GitHub means offline either way.
+  async function githubReachable() {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => { try { ctrl.abort(); } catch {} }, 8000);
+      await fetch("https://github.com/", { mode: "no-cors", cache: "no-store", signal: ctrl.signal });
+      clearTimeout(timer);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function probeConnection() {
+    try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        setConn("offline");
+        return false;
+      }
+    } catch {}
+    let cfg = {};
+    try { cfg = storedCfg(); } catch { setConn("offline"); return false; }
+    try {
+      if (cfg.token) {
+        const login = await verifyTokenQuiet(cfg.token);
+        if (login) { setConn("online"); return true; }
+        if (await githubReachable()) { setConn("auth-error"); return false; }
+        setConn("offline");
+        return false;
+      }
+      if (await githubReachable()) { setConn("online"); return true; }
+      setConn("offline");
+      return false;
+    } catch {
+      setConn("offline");
+      return false;
+    }
+  }
+
+  function stopProbeTimer() {
+    try { if (probeTimer) clearInterval(probeTimer); } catch {}
+    probeTimer = null;
+  }
+
+  function ensureProbeTimer() {
+    stopProbeTimer();
+    probeTimer = setInterval(() => {
+      try { if (!document.hidden) probeConnection(); } catch {}
+    }, PROBE_MS);
+  }
+
   // Startup auto-pull: runs only when the user opted in AND the connection
   // verifies live. Replaces local data with the backup, then refreshes the
   // messages cache. Never throws; reports into the sync status line.
@@ -1145,14 +1218,22 @@ const GhSync = (() => {
     renderSyncTimes();
     hookAutoSave();
     ensurePollTimer();
-    // Coming back to the tab: pull immediately if the last check is old.
+    // Connection chip: probe now, re-probe every minute, re-check on
+    // browser online/offline flips, and refresh the "…ago" text twice
+    // a minute so it never goes stale while you look at it.
+    ensureProbeTimer();
+    probeConnection();
     try {
+      window.addEventListener("online", () => probeConnection());
+      window.addEventListener("offline", () => setConn("offline"));
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) return;
+        probeConnection();
         let cfg = {};
         try { cfg = storedCfg(); } catch { return; }
         if (cfg.autoPull && Date.now() - lastPoll > 30000) pollOnce();
       });
+      setInterval(() => { try { renderSyncTimes(); } catch {} }, 30000);
     } catch {}
   }
 
@@ -1163,5 +1244,5 @@ const GhSync = (() => {
     initSyncUI();
   }
 
-  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured, markSync, renderSyncTimes, wipeGithubData, clearGithubAndDevice, clearEverything, deleteDeviceDatabase, deleteBrowserStorage, deleteShardBackup, deleteMessageBackup, deleteAllGithubData, pollOnce };
+  return { pushBackup, pullBackup, loadCfg, readForm, resolveCfg, storedCfg, passphrase, msgFolder, flushOutbox, fetchMessages, saveMessageRecord, deleteMessageRecord, outboxCount, notifyLocalChange, isConfiguredForSync, autoPullIfConfigured, markSync, renderSyncTimes, wipeGithubData, clearGithubAndDevice, clearEverything, deleteDeviceDatabase, deleteBrowserStorage, deleteShardBackup, deleteMessageBackup, deleteAllGithubData, pollOnce, probeConnection };
 })();

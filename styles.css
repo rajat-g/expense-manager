@@ -242,7 +242,10 @@ details.faq.flash{animation:faqflash 1.8s ease-out}
 .sync-chip.ok .dot{background:var(--income)}
 .sync-chip.err{color:var(--text); border-color:var(--expense)}
 .sync-chip.err .dot{background:var(--expense)}
+.sync-chip.warn{color:var(--text); border-color:#e8a13c}
+.sync-chip.warn .dot{background:#e8a13c}
 .sync-chip.busy .dot{background:var(--copper); animation:syncpulse 1s ease-in-out infinite}
+.sync-chip.live .dot{animation:syncpulse 2.4s ease-in-out infinite}
 @keyframes syncpulse{50%{opacity:.35}}
 
 /* ---------- icon rail (desktop) ---------- */

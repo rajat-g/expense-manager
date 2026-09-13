@@ -170,21 +170,63 @@ function renderAccounts(){
     };
   });
 
-  // Delete account handlers
+  // Delete account handlers (moves or cascades its transactions first)
   $$("#accTable [data-delacc]").forEach(b=>{
     b.onclick=async ()=>{
       const id=b.dataset.delacc;
       const cnt = queryOne("SELECT COUNT(*) as c FROM transactions WHERE accountId=? OR toAccountId=?", [id, id]).c;
-      if(cnt>0){ Notify.alert("Cannot delete: account has transactions (including transfers).", "error"); return; }
-      if(!(await Notify.confirm("Delete this account?", { danger: true }))) return;
-      exec("DELETE FROM accounts WHERE id=?", [id]); 
-      recordTombstone(id, "accounts");
-      saveDB(); 
-      Notify.toast("Account deleted.", "success");
-      renderAccountGroups(); 
-      renderAccounts(); 
-      renderTxSelectors(); 
+      const oldName = queryOne("SELECT name FROM accounts WHERE id=?", [id]).name || "account";
+      let done = "";
+      if(cnt>0){
+        const others = query("SELECT id,name FROM accounts WHERE id != ? ORDER BY name", [id]);
+        if (!others.length) {
+          if(!(await Notify.confirm(`Delete "${oldName}" and its ${cnt} transaction(s)?`, { danger: true, okText: "Delete all" }))) return;
+          deleteAccountWithTxns(id);
+          done = `Account deleted with ${cnt} transaction(s).`;
+        } else {
+          const r = await Notify.choose(
+            `"${oldName}" has ${cnt} transaction(s).`,
+            "Move them to another account (including transfer endpoints), or delete everything.",
+            others.map((a) => ({ value: a.id, label: a.name })),
+            { okText: "Move", dangerText: `Delete all (${cnt})` });
+          if (!r) return;
+          if (r.action === "danger") {
+            deleteAccountWithTxns(id);
+            done = `Account deleted with ${cnt} transaction(s).`;
+          } else {
+            if (!r.value) return;
+            exec("UPDATE transactions SET accountId=? WHERE accountId=?", [r.value, id]);
+            exec("UPDATE transactions SET toAccountId=? WHERE toAccountId=?", [r.value, id]);
+            exec("DELETE FROM accounts WHERE id=?", [id]);
+            recordTombstone(id, "accounts");
+            const toName = queryOne("SELECT name FROM accounts WHERE id=?", [r.value]).name || "account";
+            done = `${cnt} transaction(s) moved to ${toName}.`;
+          }
+        }
+      } else {
+        if(!(await Notify.confirm(`Delete "${oldName}"?`, { danger: true }))) return;
+        exec("DELETE FROM accounts WHERE id=?", [id]);
+        recordTombstone(id, "accounts");
+        done = "Account deleted.";
+      }
+      saveDB();
+      Notify.toast(done, "success");
+      renderAccountGroups();
+      renderAccounts();
+      renderTxSelectors();
       refreshDashboardBits();
     };
   });
+}
+
+// Delete an account together with every transaction touching it (each
+// tombstoned so the delete propagates on next sync).
+function deleteAccountWithTxns(id){
+  const rows = query("SELECT id FROM transactions WHERE accountId=? OR toAccountId=?", [id, id]);
+  for (const r of rows) {
+    exec("DELETE FROM transactions WHERE id=?", [r.id]);
+    recordTombstone(r.id, "transactions");
+  }
+  exec("DELETE FROM accounts WHERE id=?", [id]);
+  recordTombstone(id, "accounts");
 }
