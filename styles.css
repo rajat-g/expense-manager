@@ -1,38 +1,39 @@
-/* Expense Manager — ember ledger world.
-   Warm charcoal canvas, copper accents, serif hero numerals. Light paper
-   counterpart. Offline-safe system type (+ Georgia display serif, no downloads).
-   Tabular numerals everywhere money lives. */
+/* Expense Manager — deep blue/black world.
+   Near-black blue canvas, azure accents, serif hero numerals. Light paper
+   counterpart (kept copper). Offline-safe system type (+ Georgia display
+   serif, no downloads). Tabular numerals everywhere money lives.
+   NOTE: --copper* is the accent token family — azure in dark, copper in light. */
 
 :root, html[data-theme="dark"]{
   color-scheme: dark;
-  --bg:#070503;
-  --card:#100d09;
-  --card2:#1b1610;
-  --text:#f8f2e6;
-  --secondary:#b8ab92;
-  --tertiary:#7d7160;
-  --separator:rgba(240,188,78,.18);
-  --copper:#f0bc4e;
-  --copper-deep:#d99a2b;
-  --copper-ink:#0a0705;
-  --copper-tint:rgba(240,188,78,.16);
+  --bg:#04070c;
+  --card:#090f19;
+  --card2:#131f36;
+  --text:#edf3ff;
+  --secondary:#9db1cc;
+  --tertiary:#61738f;
+  --separator:rgba(93,155,247,.2);
+  --copper:#5d9bf7;
+  --copper-deep:#2b7cd9;
+  --copper-ink:#04070c;
+  --copper-tint:rgba(93,155,247,.16);
   --income:#a8d18f;
   --income-deep:#5da24c;
   --income-tint:rgba(168,209,143,.16);
   --expense:#f08664;
   --expense-deep:#c34a2e;
   --expense-tint:rgba(240,134,100,.16);
-  --info:#8db4e5;
-  --info-tint:rgba(141,180,229,.16);
+  --info:#79c0f2;
+  --info-tint:rgba(121,192,242,.16);
   --violet:#c2aef0;
   --violet-tint:rgba(194,174,240,.18);
   --teal:#8ad4c7;
   --teal-tint:rgba(138,212,199,.16);
-  --fill:#211b12;
-  --fab:#f0bc4e;
-  --fab-ink:#0a0705;
+  --fill:#16223a;
+  --fab:#5d9bf7;
+  --fab-ink:#04070c;
   --shadow:0 1px 2px rgba(0,0,0,.7), 0 18px 44px rgba(0,0,0,.6);
-  --card-border:1px solid rgba(240,188,78,.16);
+  --card-border:1px solid rgba(93,155,247,.18);
   --radius:18px;
   --radius-sm:12px;
   --sat:env(safe-area-inset-top, 0px);
@@ -89,6 +90,7 @@ body{
   line-height:1.45;
   display:flex;
   min-height:100vh;
+  min-height:100dvh;
   caret-color:var(--copper);
 }
 html[data-theme="light"] body{background-image:radial-gradient(1200px 500px at 80% -10%, rgba(154,98,18,.08), transparent 60%)}
@@ -274,6 +276,8 @@ tbody tr:active{background:var(--fill)}
 .txday .day-exp{color:var(--expense); font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; margin-left:16px}
 .txrow{display:flex; align-items:center; gap:12px; padding:11px 2px; border-bottom:1px solid var(--separator)}
 .txrow:last-child{border-bottom:none}
+.txrow[data-edit]{cursor:pointer}
+.txrow[data-edit]:hover{background:var(--fill)}
 .tile{width:36px; height:36px; border-radius:12px; flex:none; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; background:var(--copper-tint); color:var(--copper)}
 .t-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:1px}
 .t-note{font-size:16px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}

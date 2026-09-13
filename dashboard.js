@@ -24,6 +24,7 @@ function renderDashboard(){
   $("#recentTx").innerHTML = recent.length
     ? txGroupsHTML(recent, false)
     : `<div class="tx-empty">No transactions yet.<br/>Tap + on the Transactions tab to add one.</div>`;
+  try { if (typeof wireTxEdit === "function") wireTxEdit($("#recentTx")); } catch {}
 
   drawMonthChart();
   drawCategoryChart();

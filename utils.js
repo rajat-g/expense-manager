@@ -46,7 +46,7 @@ const off = n => {
 // Theme: explicit "dark" (default) or "light". Persisted in localStorage;
 // applied pre-paint by the head script so first render never flashes.
 const THEME_KEY = "expense_theme_v1";
-const THEME_COLORS = { dark: "#070503", light: "#f4efe6" };
+const THEME_COLORS = { dark: "#04070c", light: "#f4efe6" };
 const THEME_ICONS = {
   // Button shows the *action*: sun in dark mode (tap for light),
   // moon in light mode (tap for dark).

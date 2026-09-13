@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"/>
 <title>Expense Manager</title>
 <meta name="description" content="Offline expense manager with encrypted GitHub backup. Installable on iPhone."/>
-<meta name="theme-color" content="#070503"/>
+<meta name="theme-color" content="#04070c"/>
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4efe6"/>
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#070503"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#04070c"/>
 <script>
 /* paint the saved theme before first render (no flash). Default: dark. */
 try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.setAttribute("data-theme",__t==="light"?"light":"dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}
@@ -28,7 +28,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="Expenses"/>
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png"/>
-<link rel="mask-icon" href="icons/icon.svg" color="#f0bc4e"/>
+<link rel="mask-icon" href="icons/icon.svg" color="#5d9bf7"/>
 <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1179x2556.png"/>
 <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" href="icons/splash-1290x2796.png"/>
 <link rel="apple-touch-startup-image" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" href="icons/splash-2048x2732.png"/>
@@ -163,7 +163,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
       <div class="card sheet-card">
         <div class="sheet-grip" aria-hidden="true"></div>
         <div class="sheet-head">
-          <h2>Add Transaction</h2>
+          <h2 id="txSheetTitle">Add Transaction</h2>
           <button id="txSheetX" class="sheet-x" aria-label="Close">×</button>
         </div>
         <div class="sheet-grid">

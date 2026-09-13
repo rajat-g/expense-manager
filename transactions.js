@@ -3,6 +3,7 @@
 // Ledger month state + helpers (reference: dense day-grouped ledger)
 let txMonth = null;
 let sheetWired = false;
+let editingTxId = null; // set while the bottom sheet edits an existing row
 let filterTouched = false; // once the user toggles the bar, stop auto collapsing
 const WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -29,7 +30,7 @@ function txDayHTML(dateStr, dInc, dExp) {
 function txRowHTML(r, withDelete) {
   const letter = ((r.cat || r.acc || "?").trim()[0] || "?").toUpperCase();
   const sub = [r.cat || "", r.acc || ""].filter(Boolean).join(" · ");
-  return `<div class="txrow">`
+  return `<div class="txrow" data-edit="${esc(r.id)}" tabindex="0" role="button" aria-label="Edit transaction ${esc(r.note || r.cat || "")} ${inr2(r.amount || 0)}">`
     + `<span class="tile" title="${esc(r.cat || "")}">${esc(letter)}</span>`
     + `<span class="t-main"><span class="t-note">${esc(r.note || r.cat || "-")}</span>`
     + `<span class="t-sub">${esc(sub)}</span></span>`
@@ -102,12 +103,62 @@ function toggleFilterBar() {
   toggle.setAttribute("aria-expanded", String(!collapsed));
 }
 
-// Bottom-sheet quick add (native iOS sheet pattern)
+// Bottom-sheet quick add (native iOS sheet pattern). Doubles as the editor:
+// openTxEdit(id) pre-fills the same form and flips the sheet into edit mode.
+function setSheetMode() {
+  const editing = !!editingTxId;
+  const title = $("#txSheetTitle");
+  if (title) title.textContent = editing ? "Edit Transaction" : "Add Transaction";
+  const save = $("#txAddBtn");
+  if (save) save.textContent = editing ? "Save" : "Add";
+  const clear = $("#txClearBtn");
+  if (clear) clear.style.display = editing ? "none" : "";
+  const sheet = $("#txSheet");
+  if (sheet) sheet.setAttribute("aria-label", editing ? "Edit transaction" : "Add transaction");
+}
 function openTxSheet() {
+  editingTxId = null;
+  setSheetMode();
   $("#txSheet").classList.add("open");
   $("#sheetBackdrop").classList.add("open");
   document.body.classList.add("sheet-open");
   setTimeout(() => { try { $("#txAmount").focus({ preventScroll: true }); } catch {} }, 280);
+}
+function openTxEdit(id) {
+  const r = queryOne("SELECT * FROM transactions WHERE id=?", [id]);
+  if (!r || !r.id) return;
+  editingTxId = r.id;
+  $("#txDate").value = r.date || todayISO();
+  $("#txType").value = r.type === "income" ? "income" : "expense";
+  updateTxCategoryOptions();
+  // account / category may have been deleted since: fall back to first option
+  const accSel = $("#txAccount"), catSel = $("#txCategory");
+  accSel.value = r.accountId || "";
+  if (!accSel.value && accSel.options.length) accSel.selectedIndex = 0;
+  catSel.value = r.categoryId || "";
+  if (!catSel.value && catSel.options.length) catSel.selectedIndex = 0;
+  $("#txAmount").value = r.amount ?? "";
+  $("#txNote").value = r.note || "";
+  setSheetMode();
+  $("#txSheet").classList.add("open");
+  $("#sheetBackdrop").classList.add("open");
+  document.body.classList.add("sheet-open");
+  setTimeout(() => { try { $("#txAmount").focus({ preventScroll: true }); } catch {} }, 280);
+}
+// Tap / Enter on a ledger row opens the editor; the × button still deletes.
+function wireTxEdit(scope) {
+  if (!scope || typeof scope.querySelectorAll !== "function") return;
+  scope.querySelectorAll("[data-edit]").forEach((row) => {
+    if (row.dataset.editWired) return;
+    row.dataset.editWired = "1";
+    row.addEventListener("click", (e) => {
+      if (e.target.closest("[data-del]")) return;
+      openTxEdit(row.dataset.edit);
+    });
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTxEdit(row.dataset.edit); }
+    });
+  });
 }
 function closeTxSheet() {
   const s = $("#txSheet"), b = $("#sheetBackdrop");
@@ -166,7 +217,7 @@ function renderTxSelectors(){
   wireTxSheet();
 }
 
-// Add new transaction
+// Save the sheet form: INSERT in add mode, UPDATE in edit mode.
 function addTransaction(){
   const date = $("#txDate").value || todayISO();
   const accountId = $("#txAccount").value;
@@ -181,10 +232,17 @@ function addTransaction(){
     alert("Selected category does not match the chosen type.");
     return;
   }
-  const id = uuid();
-  const stmt = db.prepare("INSERT INTO transactions(id,date,accountId,categoryId,type,amount,note) VALUES (?,?,?,?,?,?,?)");
-  stmt.run([id,date,accountId,categoryId,type,amount,note]); stmt.free();
+  if (editingTxId) {
+    exec("UPDATE transactions SET date=?, accountId=?, categoryId=?, type=?, amount=?, note=? WHERE id=?",
+      [date, accountId, categoryId, type, amount, note, editingTxId]);
+    editingTxId = null;
+  } else {
+    const id = uuid();
+    const stmt = db.prepare("INSERT INTO transactions(id,date,accountId,categoryId,type,amount,note) VALUES (?,?,?,?,?,?,?)");
+    stmt.run([id,date,accountId,categoryId,type,amount,note]); stmt.free();
+  }
   saveDB();
+  setSheetMode();
   clearTxForm(false);
   closeTxSheet();
   applyFilters();
@@ -244,8 +302,9 @@ function applyFilters(){
 
   // delete handlers
   $$("#txList [data-del]").forEach(b=>{
-    b.onclick = ()=>{
+    b.onclick = (e)=>{
       if(!confirm("Delete this transaction?")) return;
+      e.stopPropagation();
       exec("DELETE FROM transactions WHERE id=?", [b.dataset.del]);
       recordTombstone(b.dataset.del, "transactions");
       saveDB();
@@ -253,6 +312,8 @@ function applyFilters(){
       refreshDashboardBits();
     };
   });
+  // edit handlers (row tap / Enter)
+  wireTxEdit(list);
 }
 
 // Update add-form category options based on selected type
