@@ -621,6 +621,9 @@ footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
 /* ---------- phones ---------- */
 @media(max-width:900px){
   body{display:block}
+  .topbar{min-width:0}
+  .sync-chip{min-width:0; max-width:42vw; overflow:hidden}
+  .sync-chip span:last-child{min-width:0; overflow:hidden; text-overflow:ellipsis}
   nav.sidebar{display:none}
   html, body{height:auto; overflow:visible}
   main{padding:0; margin:0; height:auto; overflow:visible}
@@ -665,8 +668,7 @@ footer{color:var(--secondary); font-size:13px; padding:18px 4px 8px}
 }
 @media(max-width:380px){
   .topbar{gap:6px; padding-left:10px; padding-right:10px}
-  .sync-chip{max-width:42vw; min-width:0; padding-left:8px; padding-right:8px; gap:5px}
-  .sync-chip span:last-child{min-width:0; overflow:hidden; text-overflow:ellipsis}
+  .sync-chip{padding-left:8px; padding-right:8px; gap:5px}
   .sheet-grid{grid-template-columns:1fr}
   .sheet-grid .span2{grid-column:auto}
 }
