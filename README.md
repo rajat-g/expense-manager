@@ -3,9 +3,9 @@
 Offline-first expense tracker as a static PWA — no backend, no build step, no
 analytics. Your ledger lives in on-device SQLite (sql.js); an encrypted,
 sharded backup syncs to your own private GitHub repo; bank SMS arrives via an
-iPhone Shortcut into a review inbox. Dark blue-black theme by default with a
-light mode, haptic feedback on mobile, and a desktop layout that earns its
-pixels.
+iPhone Shortcut into a review inbox. Near-black indigo "Ledger" theme by
+default with a light paper mode, haptic feedback on mobile, and layouts tuned
+for phones, tablets and desktop.
 
 ## Use it
 
@@ -63,7 +63,10 @@ favicons, iOS splash screens. iPhone: Safari → Share → Add to Home Screen.
 A "Reload fresh app files" button purges stale caches after updates.
 
 **Theme, feel & lock** — Explicit dark/light toggle (top bar, sidebar,
-Settings; dark by default, persisted, no flash). Haptics via vendored
+Settings; dark by default, persisted, no flash). The layout adapts by device:
+index.html shell with bottom tab bar (phones), floating tab dock (tablets) or
+icon/labeled sidebar (desktop, ≥901px), a responsive dashboard grid, and a
+bottom sheet on touch vs centred modal on desktop. Haptics via vendored
 `web-haptics` (tab selection, sheet open, save success, validation errors,
 delete warnings, manual sync outcomes; background auto-sync stays silent).
 Optional PIN app lock (hashed, never stored) on launch and after 10 minutes
@@ -77,7 +80,7 @@ population.
 ## File structure
 
 *   `index.html` — App shell: pages, bottom sheet, tab bar / sidebar.
-*   `styles.css` — Design tokens (dark + light), phone/desktop layouts.
+*   `styles.css` — Design tokens (indigo dark + paper light), phone/tablet/desktop layouts.
 *   `utils.js` — Selectors, formatting, theme state.
 *   `database.js` — SQLite lifecycle, schema + seeds, tombstone helpers.
 *   `dashboard.js` — Async dashboard cards + lazy charts.

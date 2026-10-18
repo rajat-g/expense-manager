@@ -112,14 +112,14 @@ async function drawMonthChart(token){
   if (typeof ApexCharts === "undefined") return;
   const shortLandscape = window.matchMedia && window.matchMedia("(orientation: landscape) and (max-height: 500px)").matches;
   const areaH = shortLandscape ? 220 : (window.innerWidth < 560 ? 260 : 320);
-  const INCOME = dark ? '#a8d18f' : '#2f6b3c';
-  const EXPENSE = dark ? '#f08664' : '#b3402a';
+  const INCOME = dark ? '#34d494' : '#0f8f5f';
+  const EXPENSE = dark ? '#ff7a70' : '#d5473c';
   // ApexCharts defaults to dark-on-light text: pin every text element to the
   // active theme or the legend + axes are unreadable on the dark canvas.
-  const TEXT = dark ? '#edf3ff' : '#201a12';
-  const MUTED = dark ? '#9db1cc' : '#6b5f4c';
-  const GRID = dark ? 'rgba(157,177,204,.14)' : '#e3d9c4';
-  const FONT = 'Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif';
+  const TEXT = dark ? '#eef1fa' : '#171a21';
+  const MUTED = dark ? '#a2abbe' : '#5a6170';
+  const GRID = dark ? 'rgba(255,255,255,.08)' : '#e5e8f0';
+  const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
   const options = {
     series: [{

@@ -260,7 +260,9 @@ function initNav(){
       const page = btn.dataset.page;
       document.body.dataset.page = page;
       $$(".page").forEach(p=>p.style.display="none");
-      $("#"+page).style.display="block";
+      // "" clears the inline value so the stylesheet picks the layout
+      // (block for most pages; grid for #transactions on desktop).
+      $("#"+page).style.display="";
       if(page==="dashboard") renderDashboard();
       if(page==="inbox") { try { if (typeof Inbox !== "undefined") Inbox.renderInbox(); } catch {} }
       // close mobile nav if open
@@ -278,7 +280,7 @@ function initNav(){
       if(btn){
         btn.classList.add("active");
         $$(".page").forEach(p=>p.style.display="none");
-        $("#"+savedPage).style.display="block";
+        $("#"+savedPage).style.display="";
         if(savedPage==="dashboard") renderDashboard();
       }
     }
@@ -291,7 +293,7 @@ function showPage(id, anchor){
   $$(".page").forEach(p=>p.style.display="none");
   const el = document.getElementById(id);
   if(!el) return;
-  el.style.display="block";
+  el.style.display="";
   document.body.dataset.page = id;
   const navBtn = document.querySelector(`nav button[data-page="${id}"]`);
   $$("nav button").forEach(b=>b.classList.remove("active"));

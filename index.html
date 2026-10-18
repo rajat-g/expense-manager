@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"/>
 <title>Expense Manager</title>
 <meta name="description" content="Offline expense manager with encrypted GitHub backup. Installable on iPhone."/>
-<meta name="theme-color" content="#04070c"/>
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4efe6"/>
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#04070c"/>
+<meta name="theme-color" content="#07080d"/>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3f4f8"/>
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#07080d"/>
 <script>
 /* paint the saved theme before first render (no flash). Default: dark. */
 try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.setAttribute("data-theme",__t==="light"?"light":"dark");}catch(e){document.documentElement.setAttribute("data-theme","dark");}
@@ -56,7 +56,6 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
     <button id="syncChip" class="sync-chip"><span class="dot" aria-hidden="true"></span><span id="syncChipText">Sync off</span></button>
     <button id="themeBtnM" type="button" class="theme-btn" aria-label="Switch to light mode" title="Switch to light mode"></button>
   </div>
-  <div id="overlay"></div>
 
   <nav class="sidebar" aria-label="Primary">
     <div class="side-head"><span class="brandmark" aria-hidden="true">₹</span><span class="brandname">Expenses</span></div>
@@ -74,38 +73,40 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
     <!-- Dashboard -->
     <section id="dashboard" class="page">
       <header class="pagehead"><h1>Overview</h1><p class="sub">Your money at a glance.</p></header>
-      <div class="card hero">
-        <div class="muted">Net balance</div>
-        <div id="dNet" class="hero-net">₹0</div>
-        <div class="hero-split">
-          <span>In <b id="dIncome" class="money-pos">₹0</b></span>
-          <span>Out <b id="dExpense" class="money-neg">₹0</b></span>
-        </div>
-        <div class="toolbar hero-actions">
-          <button id="quickAddBtn" class="btn btn-primary">+ Add</button>
-          <button id="recurringBtn" type="button" class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:17px;height:17px;vertical-align:-3px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg> Recurring</button>
-          <button id="syncNowBtn" class="btn btn-ghost">Sync now</button>
-        </div>
-      </div>
 
-      <div class="row" style="margin-top:12px">
-        <div class="card" style="flex:2; min-width:300px">
+      <div class="dash-grid">
+        <div class="card hero">
+          <div class="muted">Net balance</div>
+          <div id="dNet" class="hero-net">₹0</div>
+          <div class="hero-split">
+            <span class="up">In <b id="dIncome" class="money-pos">₹0</b></span>
+            <span class="down">Out <b id="dExpense" class="money-neg">₹0</b></span>
+          </div>
+          <div class="toolbar hero-actions">
+            <button id="quickAddBtn" class="btn btn-primary">+ Add</button>
+            <button id="recurringBtn" type="button" class="btn btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:17px;height:17px;vertical-align:-3px"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg> Recurring</button>
+            <button id="syncNowBtn" class="btn btn-ghost">Sync now</button>
+          </div>
+        </div>
+
+        <div class="card chart-card">
           <h2>Last 6 Months (Income vs Expense)</h2>
           <div class="chart-container">
             <div id="monthChart"></div>
           </div>
         </div>
-        <div class="card" style="flex:1; min-width:260px">
+
+        <div class="card chart-card">
           <h2>Top Categories</h2>
           <div class="chart-container fit">
             <div id="categoryChart"></div>
           </div>
         </div>
-      </div>
 
-      <div class="card" style="margin-top:12px">
-        <h2>Recent Transactions</h2>
-        <div id="recentTx"></div>
+        <div class="card recent-card">
+          <h2>Recent Transactions</h2>
+          <div id="recentTx"></div>
+        </div>
       </div>
     </section>
 
@@ -135,7 +136,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           <svg id="filterChev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9.5l6 6 6-6"/></svg>
         </button>
         <div id="filterBody">
-          <div style="margin-top:10px">
+          <div>
             <label>Search</label>
             <input type="search" id="txSearch" placeholder="Note, account, category, amount…" autocomplete="off">
           </div>
@@ -193,7 +194,10 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
           <button id="txSheetX" class="sheet-x" aria-label="Close">×</button>
         </div>
         <div class="sheet-grid">
-          <div><label>Amount</label><input type="number" id="txAmount" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+          <div>
+            <label>Amount</label>
+            <input type="number" id="txAmount" step="0.01" inputmode="decimal" placeholder="0.00">
+          </div>
           <div>
             <label>Type</label>
             <select id="txType">
@@ -217,7 +221,7 @@ try{var __t=localStorage.getItem("expense_theme_v1");document.documentElement.se
             <div id="txSplitLines"></div>
           </div>
         </div>
-        <div class="toolbar sheet-actions" style="margin-top:12px">
+        <div class="toolbar sheet-actions" style="margin-top:14px">
           <button id="txAddBtn" class="btn btn-primary">Add</button>
           <button id="txSplitBtn" type="button" class="btn btn-ghost">Split</button>
           <button id="txClearBtn" class="btn btn-ghost">Clear</button>
